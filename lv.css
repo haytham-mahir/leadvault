@@ -423,55 +423,110 @@ path.dn{transform-origin:75px 75px;animation:dn .8s var(--ease) both}
 .editing .wedit{top:12px;right:12px;padding:4px;border-radius:12px;background:rgba(255,255,255,.92);box-shadow:0 8px 20px -10px rgba(0,0,0,.35);backdrop-filter:blur(6px)}
 .editing .w.note{background:rgba(255,255,255,.6)}
 
-/* ===== vault loader ===== */
-.vault{--d:250px;width:var(--d);height:var(--d);position:relative;perspective:900px}
-.vault svg{width:100%;height:100%;display:block;overflow:visible}
-.vault .vdoorwrap{position:absolute;inset:0;transform-origin:6% 50%;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.6,.05,.25,1)}
-.vault .vframe{filter:drop-shadow(0 20px 40px rgba(0,0,0,.45))}
-.vault .vglow{opacity:.0;transform-origin:120px 120px;transition:opacity .6s,transform .9s var(--ease)}
-.vault .vhalo{stroke-dasharray:6 3;transform-origin:120px 120px;animation:halo 18s linear infinite}
-@keyframes halo{to{transform:rotate(360deg)}}
-.vault .vdial{transform-origin:120px 120px}
-.vault .vwheel{transform-origin:120px 120px}
-.vault .vbolt{transition:transform .5s var(--ease-io)}
-.vault .vsheen{animation:sheen 3.4s ease-in-out infinite}
-@keyframes sheen{0%{transform:translateX(0) skewX(-18deg)}60%,100%{transform:translateX(340px) skewX(-18deg)}}
-.vault.spin .vdial{animation:combo 2.8s var(--ease-io) infinite}
-.vault.spin .vwheel{animation:wheel 5.6s var(--ease-io) infinite}
-@keyframes combo{0%{transform:rotate(0)}25%{transform:rotate(-150deg)}45%{transform:rotate(-95deg)}75%{transform:rotate(-260deg)}100%{transform:rotate(-360deg)}}
-@keyframes wheel{0%,40%{transform:rotate(0)}60%{transform:rotate(18deg)}75%{transform:rotate(-8deg)}100%{transform:rotate(0)}}
-.vault.calm .vdial{animation:combo 9s var(--ease-io) infinite}
-.vault.unlock .vbolt{transform:translateX(-15px)}
-.vault.unlock .vdial{animation:none;transform:rotate(-405deg);transition:transform .55s var(--ease)}
-.vault.unlock .vwheel{animation:none;transform:rotate(240deg);transition:transform .6s var(--ease-io)}
-.vault.unlock .vglow{opacity:.55}
-.vault.open .vdoorwrap{transform:rotateY(-104deg)}
-.vault.open .vglow{opacity:1;transform:scale(1.15)}
-.boot{background:radial-gradient(900px 600px at 50% 42%,#14513F 0%,#0F3D2E 40%,#06201A 100%);overflow:hidden;transition:opacity .8s ease,visibility 0s .8s,transform .8s var(--ease)}
-.boot .boot-dust{position:absolute;inset:0;width:100%;height:100%}
-.boot .boot-rays{position:absolute;left:50%;top:42%;width:1400px;height:1400px;margin:-700px 0 0 -700px;opacity:.13;pointer-events:none;
-  background:repeating-conic-gradient(from 0deg,rgba(242,214,140,.9) 0deg 2deg,transparent 2deg 14deg);
-  -webkit-mask:radial-gradient(circle,#000 0,transparent 60%);mask:radial-gradient(circle,#000 0,transparent 60%);animation:rays 40s linear infinite;transition:opacity .8s}
-@keyframes rays{to{transform:rotate(360deg)}}
-.boot-in{position:relative;gap:26px}
-.boot-word{font:600 34px/1 var(--f-display);letter-spacing:-.03em}
-.boot-word span{background:linear-gradient(100deg,#E8CF8E 20%,#FFF6DA 40%,#C29B3F 60%,#E8CF8E 80%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:goldtext 3.5s linear infinite}
-@keyframes goldtext{to{background-position:-300% 0}}
-.boot-bar{width:180px;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
-.boot-bar i{display:block;height:100%;width:40%;background:linear-gradient(90deg,transparent,#E8CF8E,transparent);animation:barslide 1.6s var(--ease-io) infinite}
-@keyframes barslide{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
-.boot-msg{letter-spacing:.01em}
-.boot-msg.in{animation:msgin .45s var(--ease)}
-@keyframes msgin{from{opacity:0;transform:translateY(6px)}}
-.boot.opening .boot-rays{opacity:.45}
-.boot.opening .boot-word span{animation-duration:1s}
-.boot.gone{opacity:0;visibility:hidden;transform:scale(1.06)}
-@media (max-width:600px){.vault{--d:170px}.boot-word{font-size:28px}}
+/* ===== vault loader: machined steel door ===== */
+.vault{--d:260px;--rx:0;--ry:0;width:var(--d);height:var(--d);position:relative}
+.vault svg{display:block;overflow:visible}
+.v-tilt{position:absolute;inset:0;transform-style:preserve-3d;transform:perspective(1100px) rotateX(calc(var(--ry) * -9deg)) rotateY(calc(var(--rx) * 11deg));transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.vault.hover .v-tilt{transition-duration:.25s}
+.v-floor{position:absolute;left:8%;right:8%;bottom:-11%;height:14%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.65),rgba(0,0,0,0));filter:blur(6px);transform:translateZ(-40px)}
+.v-frame{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 26px 34px rgba(0,0,0,.55)) drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.v-inside{position:absolute;inset:9.67%;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 50% 45%,#2a2113 0,#0b0a08 62%,#030405 100%);box-shadow:inset 0 0 30px 10px #000}
+.v-shelf{position:absolute;inset:0;opacity:0;transition:opacity 1.1s .15s;
+  background:repeating-radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 0 7%,rgba(0,0,0,.5) 7% 8.2%,rgba(255,236,190,.18) 8.2% 8.8%),radial-gradient(circle at 50% 50%,#fff6dc 0,#e9c578 22%,#7a5a22 52%,#1a1309 100%)}
+.v-core{position:absolute;left:50%;top:50%;width:140%;height:140%;transform:translate(-50%,-50%) scale(.4);border-radius:50%;opacity:0;mix-blend-mode:screen;
+  background:radial-gradient(circle,#fffdf6 0,#fff1c9 14%,#f3cf7c 32%,rgba(226,176,72,.45) 50%,rgba(194,155,63,0) 70%);transition:opacity .9s,transform 1.4s cubic-bezier(.2,.7,.2,1)}
+.v-seam{position:absolute;inset:12.6%;border-radius:50%;opacity:0;transition:opacity .35s;box-shadow:0 0 2px 1px #fff7dc,0 0 10px 3px rgba(255,226,150,.95),0 0 34px 10px rgba(255,200,100,.5)}
+.v-door{position:absolute;inset:13%;border-radius:50%;transform-style:preserve-3d;transform-origin:-5% 50%;transition:transform 1.35s cubic-bezier(.62,0,.16,1)}
+.v-depth{position:absolute;inset:0;transform-style:preserve-3d}
+.v-depth i{position:absolute;inset:0;border-radius:50%;background:linear-gradient(90deg,#1c2025,#4a5158 40%,#23282d);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6)}
+.v-depth i:nth-child(1){transform:translateZ(-2px)}.v-depth i:nth-child(2){transform:translateZ(-4px)}.v-depth i:nth-child(3){transform:translateZ(-6px)}.v-depth i:nth-child(4){transform:translateZ(-8px)}
+.v-depth i:nth-child(5){transform:translateZ(-10px)}.v-depth i:nth-child(6){transform:translateZ(-12px)}.v-depth i:nth-child(7){transform:translateZ(-14px)}.v-depth i:nth-child(8){transform:translateZ(-16px);background:#111417}
+.v-face{position:absolute;inset:0;border-radius:50%;transform:translateZ(0);
+  background:repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,.045) 0 .6px,rgba(0,0,0,.05) .6px 1.6px),
+    conic-gradient(from calc(205deg + var(--rx) * 50deg) at 50% 50%,#5b636b,#c3c9ce 11%,#4f565e 23%,#8e969e 37%,#434950 50%,#b0b7bd 63%,#535a62 76%,#d0d5d9 88%,#5b636b);
+  box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.7),inset 0 5px 12px rgba(255,255,255,.22),inset 0 -12px 26px rgba(0,0,0,.55);transition:background .3s}
+.v-art{position:absolute;inset:-17.57%;width:135.14%;height:135.14%;transform:translateZ(.5px)}
+.v-art .v-nums text{font:700 6.4px/1 Inter,Arial,sans-serif;fill:#ece6d6;text-anchor:middle;letter-spacing:-.1px}
+.v-spec{position:absolute;inset:0;border-radius:50%;pointer-events:none;transform:translateZ(1px);mix-blend-mode:soft-light;opacity:.55;transition:opacity .4s;
+  background:radial-gradient(circle at calc(38% + var(--rx) * 26%) calc(30% + var(--ry) * 26%),rgba(255,255,255,.95) 0,rgba(255,255,255,.25) 22%,rgba(255,255,255,0) 48%)}
+.vault.hover .v-spec{opacity:.9}
+.vault.hover.calm .vdial,.vault.hover.calm .v-index{animation-play-state:paused}
+.vault.hover .v-seam{opacity:.22;transition-duration:.6s}
+.vault .vdial,.vault .vwheel{transform-box:view-box;transform-origin:150px 150px}
+.vault .vdial{transform:rotate(calc(var(--rx) * 14deg));transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.vault .v-index{transition:filter .2s}
+.vault .vbolt{transition:transform .5s cubic-bezier(.5,0,.15,1) calc(var(--i) * 60ms)}
+.vault .vwheel{transition:transform .9s cubic-bezier(.55,0,.2,1.12)}
+
+/* working the combination: fast turn, settle, reverse, settle */
+.vault.spin .vdial{animation:vcombo 6.4s infinite}
+.vault.calm .vdial{animation:vcombo 16s infinite}
+.vault.spin .v-index{animation:vtick 6.4s infinite}
+.vault.calm .v-index{animation:vtick 16s infinite}
+@keyframes vcombo{
+  0%{transform:rotate(0);animation-timing-function:cubic-bezier(.35,0,.15,1)}
+  24%{transform:rotate(612deg)}
+  31%{transform:rotate(612deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  52%{transform:rotate(277deg)}
+  59%{transform:rotate(277deg);animation-timing-function:cubic-bezier(.4,0,.2,1)}
+  74%{transform:rotate(450deg)}
+  82%{transform:rotate(450deg);animation-timing-function:cubic-bezier(.55,0,.3,1)}
+  100%{transform:rotate(720deg)}}
+@keyframes vtick{0%,23%,32%,51%,60%,73%,83%,100%{filter:none}25%,29%,53%,57%,75%,80%{filter:drop-shadow(0 0 3px #ffe6a0) brightness(1.35)}}
+.vault.spin .vwheel{animation:vwheel 6.4s infinite}
+@keyframes vwheel{0%,22%,26%,50%,54%,72%,76%,100%{transform:rotate(0)}24%,52%,74%{transform:rotate(1.4deg)}}
+
+/* unlock → turn → crack → open */
+.vault.unlock .vdial{animation:none;transition:transform .5s cubic-bezier(.2,.9,.25,1.06)}
+.vault.unlock .v-index{animation:none;filter:drop-shadow(0 0 4px #ffe6a0) brightness(1.5)}
+.vault.unlock .vwheel{animation:none}
+.vault.turn .vwheel{transform:rotate(108deg)}
+.vault.turn .vbolt{transform:translateX(-27px)}
+.vault.crack .v-seam{opacity:1}
+.vault.crack .v-core{opacity:.35;transform:translate(-50%,-50%) scale(.7)}
+.vault.crack .v-door{transform:translateZ(7px)}
+.vault.crack .v-tilt{animation:vshake .32s linear}
+@keyframes vshake{0%,100%{translate:0 0}20%{translate:1.2px -.6px}40%{translate:-1px .8px}60%{translate:.8px .5px}80%{translate:-.6px -.4px}}
+.vault.open .v-tilt{transform:perspective(1100px)}
+.vault.open .v-door{transform:translateZ(7px) rotateY(-116deg)}
+.vault.open .v-seam{opacity:0;transition-duration:.8s}
+.vault.open .v-core{opacity:1;transform:translate(-50%,-50%) scale(1.15)}
+.vault.open .v-shelf{opacity:1}
+.vault.open .v-inside{box-shadow:inset 0 0 26px 6px rgba(0,0,0,.6),0 0 60px 18px rgba(255,214,130,.45),0 0 140px 50px rgba(255,200,110,.22);transition:box-shadow 1.2s .2s}
+.vault.open .v-spec{opacity:.2}
+
+/* the loading screen: a dark room, one light from above */
+.boot{background:radial-gradient(1100px 760px at 50% 38%,#123b2f 0%,#0a231c 42%,#040b09 100%);overflow:hidden;transition:opacity .9s ease,visibility 0s .9s}
+.boot .boot-spot{position:absolute;left:50%;top:-6%;width:1000px;height:115%;transform:translateX(-50%);pointer-events:none;
+  background:conic-gradient(from 180deg at 50% 0,transparent 162deg,rgba(255,238,200,.045) 170deg,rgba(255,238,200,.09) 180deg,rgba(255,238,200,.045) 190deg,transparent 198deg),
+    radial-gradient(ellipse 30% 46% at 50% 0,rgba(255,240,205,.12),transparent 70%)}
+.boot .boot-dust{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.boot-in{position:relative;display:grid;justify-items:center;gap:30px;transition:opacity .6s}
+.boot-stage{transition:transform 1.8s cubic-bezier(.65,0,.25,1)}
+.boot-word{font:600 13px/1 var(--f-display);letter-spacing:.55em;margin-right:-.55em;color:#d8ccad;display:flex;align-items:center;gap:16px}
+.boot-word::before,.boot-word::after{content:'';width:34px;height:1px;background:linear-gradient(90deg,transparent,rgba(216,204,173,.6))}
+.boot-word::after{transform:scaleX(-1)}
+.boot-bar{width:150px;height:1px;background:rgba(255,255,255,.1);overflow:hidden}
+.boot-bar i{display:block;height:100%;width:35%;background:linear-gradient(90deg,transparent,#e8cf8e,transparent);animation:barslide 1.8s cubic-bezier(.6,0,.4,1) infinite}
+@keyframes barslide{from{transform:translateX(-110%)}to{transform:translateX(300%)}}
+.boot-msg{font-size:12.5px;letter-spacing:.04em;color:rgba(255,255,255,.5);min-height:18px;transition:color .3s}
+.boot-msg.in{animation:msgin .5s cubic-bezier(.2,.8,.2,1)}
+.boot-msg.ok{color:#e8cf8e}
+@keyframes msgin{from{opacity:0;transform:translateY(5px)}}
+.boot-flood{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;pointer-events:none;opacity:0;transform:scale(0);
+  background:radial-gradient(circle,#fffdf7 0,#fff3d2 30%,#f4d58e 52%,rgba(232,196,110,.35) 64%,rgba(232,196,110,0) 72%);transition:transform 1.6s cubic-bezier(.7,0,.25,1),opacity .6s}
+.boot.opening .boot-bar{opacity:0;transition:opacity .4s}
+.boot.flood .boot-flood{opacity:1;transform:scale(70)}
+.boot.flood .boot-stage{transform:scale(1.55)}
+.boot.flood .boot-word,.boot.flood .boot-msg{opacity:0;transition:opacity .5s}
+.boot.gone{opacity:0;visibility:hidden}
+@media (max-width:600px){.vault{--d:190px}}
+@media (prefers-reduced-motion:reduce){.vault .vdial,.vault .v-index,.vault .vwheel,.boot-bar i{animation:none!important}.v-tilt,.v-door,.boot-stage,.boot-flood{transition-duration:.01s!important}}
 
 /* sign-in art */
 .gate-art .gate-dust{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .gate-art{background:radial-gradient(900px 700px at 30% 60%,#14513F,#0F3D2E 55%,#082a21)}
-.gate-hero .vault{--d:min(30vw,300px)}
+.gate-hero .vault{--d:min(28vw,300px)}
 .gate-hero h1{background:linear-gradient(180deg,#fff,#E9E2CC);-webkit-background-clip:text;background-clip:text;color:transparent}
 .gate-card{animation:rise .8s var(--ease) .1s both}
 .gate-card .input{transition:border-color .2s,box-shadow .2s,transform .2s}

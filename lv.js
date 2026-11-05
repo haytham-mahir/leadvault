@@ -104,50 +104,108 @@ LV.dial = (cls) => {
     '</svg></div>';
 };
 
-/* ---------- the vault door (loading screen) ----------
-   A brass-rimmed vault door: the combination dial spins, the wheel turns, eight bolts
-   retract and the door swings open on its hinge into warm light. */
+/* ---------- the vault door (loading screen and sign-in art) ----------
+   A machined steel vault door set in a heavy frame. The combination dial works
+   through a real combination (fast spin, slow settle, reverse), the hand-wheel
+   turns with weight, eight locking bolts withdraw one after another, light
+   leaks through the seam and the door swings open on its hinge into the light.
+   Hovering tilts the door towards the pointer, moves the reflection across the
+   steel and lets the dial follow your hand. */
+let VSEQ = 0;
 LV.vault = (cls) => {
-  const c = 120; let rivets = '', bolts = '', ticks = '', spokes = '';
-  for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2; rivets += '<circle cx="' + (c + 104 * Math.cos(a)).toFixed(1) + '" cy="' + (c + 104 * Math.sin(a)).toFixed(1) + '" r="2.1" fill="url(#vB2)"/>'; }
-  for (let i = 0; i < 8; i++) bolts += '<g transform="rotate(' + (i * 45 + 22.5) + ' 120 120)"><rect class="vbolt" x="194" y="113" width="30" height="14" rx="3" fill="url(#vB)" stroke="#6E5418" stroke-width=".8"/></g>';
-  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2, L = i % 4 === 0, r1 = L ? 23 : 26; ticks += '<line x1="' + (c + r1 * Math.cos(a)).toFixed(1) + '" y1="' + (c + r1 * Math.sin(a)).toFixed(1) + '" x2="' + (c + 30 * Math.cos(a)).toFixed(1) + '" y2="' + (c + 30 * Math.sin(a)).toFixed(1) + '" stroke="#E8CF8E" stroke-width="' + (L ? 1.6 : .7) + '"/>'; }
-  for (let i = 0; i < 3; i++) spokes += '<g transform="rotate(' + (i * 120) + ' 120 120)"><rect x="117" y="62" width="6" height="40" rx="3" fill="url(#vB)"/><circle cx="120" cy="60" r="7.5" fill="url(#vB)" stroke="#6E5418" stroke-width=".8"/><circle cx="118" cy="58" r="2.2" fill="#FFF3CF" opacity=".7"/></g>';
-  return '<div class="vault ' + (cls || '') + '"><svg class="vframe" viewBox="0 0 240 240" aria-hidden="true"><defs>' +
-    '<linearGradient id="vB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3DC9A"/><stop offset=".45" stop-color="#C29B3F"/><stop offset=".7" stop-color="#E2C47A"/><stop offset="1" stop-color="#8A6B21"/></linearGradient>' +
-    '<linearGradient id="vB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0C2"/><stop offset="1" stop-color="#9C7A2A"/></linearGradient>' +
-    '<radialGradient id="vD" cx=".38" cy=".32" r=".85"><stop offset="0" stop-color="#1D6B52"/><stop offset=".55" stop-color="#0F3D2E"/><stop offset="1" stop-color="#06201A"/></radialGradient>' +
-    '<radialGradient id="vG" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF6DA"/><stop offset=".35" stop-color="#F1D68C" stop-opacity=".9"/><stop offset="1" stop-color="#C29B3F" stop-opacity="0"/></radialGradient>' +
-    '<linearGradient id="vS" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
-    '<clipPath id="vC"><circle cx="120" cy="120" r="96"/></clipPath></defs>' +
-    '<circle cx="120" cy="120" r="118" fill="none" stroke="rgba(217,184,104,.18)" stroke-width="1"/>' +
-    '<circle class="vhalo" cx="120" cy="120" r="112" fill="none" stroke="url(#vB)" stroke-width="10"/>' + rivets +
-    '<circle class="vglow" cx="120" cy="120" r="98" fill="url(#vG)"/>' +
-    '<path d="M120 1 113 -9h14z" fill="#E8CF8E"/></svg><div class="vdoorwrap"><svg viewBox="0 0 240 240" aria-hidden="true">' +
-    '<g class="vdoor">' + bolts +
-      '<circle cx="120" cy="120" r="97" fill="url(#vD)" stroke="url(#vB)" stroke-width="3"/>' +
-      '<circle cx="120" cy="120" r="84" fill="none" stroke="#C29B3F" stroke-opacity=".55" stroke-width="1"/>' +
-      '<circle cx="120" cy="120" r="78" fill="none" stroke="#C29B3F" stroke-opacity=".25" stroke-width="6" stroke-dasharray="2 6"/>' +
-      '<g class="vwheel">' + spokes + '<circle cx="120" cy="120" r="36" fill="#0A2A20" stroke="url(#vB)" stroke-width="3"/></g>' +
-      '<g class="vdial">' + ticks + '<circle cx="120" cy="120" r="19" fill="url(#vD)" stroke="#E8CF8E" stroke-width="1.4"/><path d="M114.5 115.5 120 125l5.5-9.5" fill="none" stroke="#F3DC9A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>' +
-      '<g clip-path="url(#vC)"><rect class="vsheen" x="-60" y="0" width="60" height="240" fill="url(#vS)"/></g>' +
-    '</g></svg></div></div>';
+  const u = 'v' + (++VSEQ), C = 150, f = n => n.toFixed(1);
+  let frameBolts = '', rimBolts = '', lockBolts = '', ticks = '', nums = '', knurl = '', spokes = '', rings = '';
+  for (let i = 0; i < 16; i++) { const a = (i + .5) / 16 * Math.PI * 2, x = C + 131 * Math.cos(a), y = C + 131 * Math.sin(a);
+    frameBolts += '<g transform="translate(' + f(x) + ' ' + f(y) + ') rotate(' + f(a * 57.3 + 30) + ')"><polygon points="-4.6,0 -2.3,-4 2.3,-4 4.6,0 2.3,4 -2.3,4" fill="url(#' + u + 'nut)" stroke="#1d2126" stroke-width=".6"/><circle r="1.6" fill="#0d1013" opacity=".55"/></g>'; }
+  for (let i = 0; i < 24; i++) { const a = i / 24 * Math.PI * 2; rimBolts += '<circle cx="' + f(C + 101 * Math.cos(a)) + '" cy="' + f(C + 101 * Math.sin(a)) + '" r="2.6" fill="url(#' + u + 'dome)" stroke="#15181c" stroke-width=".5"/>'; }
+  for (let i = 0; i < 8; i++) lockBolts += '<g transform="rotate(' + (i * 45 + 22.5) + ' 150 150)"><g class="vbolt" style="--i:' + i + '"><rect x="234" y="143" width="30" height="14" rx="2.5" fill="url(#' + u + 'boltg)" stroke="#2a2f35" stroke-width=".7"/><rect x="236" y="144.5" width="26" height="2.2" rx="1" fill="#fff" opacity=".35"/></g></g>';
+  for (let i = 0; i < 100; i++) { const a = i / 100 * Math.PI * 2 - Math.PI / 2, L = i % 10 === 0, M = i % 5 === 0, r1 = L ? 33 : M ? 35.5 : 37;
+    ticks += '<line x1="' + f(C + r1 * Math.cos(a)) + '" y1="' + f(C + r1 * Math.sin(a)) + '" x2="' + f(C + 39.5 * Math.cos(a)) + '" y2="' + f(C + 39.5 * Math.sin(a)) + '" stroke="#e9e4d6" stroke-opacity="' + (L ? .95 : .55) + '" stroke-width="' + (L ? 1.1 : .5) + '"/>';
+    if (L) nums += '<text x="' + f(C + 27.5 * Math.cos(a)) + '" y="' + f(C + 27.5 * Math.sin(a) + 2.2) + '" transform="rotate(' + f(i * 3.6) + ' ' + f(C + 27.5 * Math.cos(a)) + ' ' + f(C + 27.5 * Math.sin(a)) + ')">' + i + '</text>'; }
+  for (let i = 0; i < 90; i++) { const a = i / 90 * Math.PI * 2; knurl += '<line x1="' + f(C + 40.5 * Math.cos(a)) + '" y1="' + f(C + 40.5 * Math.sin(a)) + '" x2="' + f(C + 44 * Math.cos(a)) + '" y2="' + f(C + 44 * Math.sin(a)) + '" stroke="#0e1114" stroke-opacity=".55" stroke-width=".8"/>'; }
+  for (let i = 0; i < 5; i++) spokes += '<g transform="rotate(' + (i * 72) + ' 150 150)"><rect x="146" y="72" width="8" height="58" rx="4" fill="url(#' + u + 'spoke)" stroke="#20252a" stroke-width=".6"/><circle cx="150" cy="70" r="9" fill="url(#' + u + 'knob)" stroke="#1b1f23" stroke-width=".7"/><ellipse cx="147" cy="66.5" rx="3.6" ry="2.2" fill="#fff" opacity=".55"/></g>';
+  [92, 86, 64, 60].forEach((r, k) => { rings += '<circle cx="150" cy="150" r="' + r + '" fill="none" stroke="' + (k % 2 ? '#fff' : '#000') + '" stroke-opacity="' + (k % 2 ? .10 : .35) + '" stroke-width="' + (k % 2 ? .8 : 1.4) + '"/>'; });
+  const defs = '<defs>' +
+    '<linearGradient id="' + u + 'frame" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5d646c"/><stop offset=".35" stop-color="#2c3238"/><stop offset=".62" stop-color="#454c54"/><stop offset="1" stop-color="#15191d"/></linearGradient>' +
+    '<linearGradient id="' + u + 'bevel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa2aa"/><stop offset=".5" stop-color="#3a4047"/><stop offset="1" stop-color="#0c0f12"/></linearGradient>' +
+    '<radialGradient id="' + u + 'nut" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#c9ced3"/><stop offset=".55" stop-color="#6b737b"/><stop offset="1" stop-color="#2a3036"/></radialGradient>' +
+    '<radialGradient id="' + u + 'dome" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e7eaed"/><stop offset=".6" stop-color="#7d858d"/><stop offset="1" stop-color="#2d333a"/></radialGradient>' +
+    '<linearGradient id="' + u + 'boltg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dde1"/><stop offset=".45" stop-color="#8d959d"/><stop offset="1" stop-color="#3b4249"/></linearGradient>' +
+    '<linearGradient id="' + u + 'spoke" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3d444b"/><stop offset=".35" stop-color="#e3e6e9"/><stop offset=".6" stop-color="#8a929a"/><stop offset="1" stop-color="#2b3137"/></linearGradient>' +
+    '<radialGradient id="' + u + 'knob" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#f4f5f6"/><stop offset=".5" stop-color="#9aa1a8"/><stop offset="1" stop-color="#30363c"/></radialGradient>' +
+    '<radialGradient id="' + u + 'hub" cx=".38" cy=".3" r=".9"><stop offset="0" stop-color="#d6dadd"/><stop offset=".55" stop-color="#5f676f"/><stop offset="1" stop-color="#1c2025"/></radialGradient>' +
+    '<radialGradient id="' + u + 'dialf" cx=".4" cy=".32" r=".85"><stop offset="0" stop-color="#2d3339"/><stop offset="1" stop-color="#0d1013"/></radialGradient>' +
+    '<linearGradient id="' + u + 'brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e2a6"/><stop offset=".5" stop-color="#c29b3f"/><stop offset="1" stop-color="#7d5f1c"/></linearGradient>' +
+    '<radialGradient id="' + u + 'recess" cx=".5" cy=".5" r=".5"><stop offset=".86" stop-color="#05070a"/><stop offset="1" stop-color="#20262c"/></radialGradient>' +
+    '</defs>';
+  return '<div class="vault ' + (cls || '') + '"><div class="v-tilt">' +
+    '<div class="v-floor"></div>' +
+    '<svg class="v-frame" viewBox="0 0 300 300" aria-hidden="true">' + defs +
+      '<circle cx="150" cy="150" r="146" fill="url(#' + u + 'frame)"/>' +
+      '<circle cx="150" cy="150" r="146" fill="none" stroke="url(#' + u + 'bevel)" stroke-width="2.4"/>' +
+      '<circle cx="150" cy="150" r="138" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1"/>' +
+      '<circle cx="150" cy="150" r="124" fill="none" stroke="url(#' + u + 'bevel)" stroke-width="3" transform="rotate(180 150 150)"/>' +
+      frameBolts +
+      '<circle cx="150" cy="150" r="121" fill="url(#' + u + 'recess)"/>' +
+      '<rect x="6" y="104" width="18" height="30" rx="4" fill="url(#' + u + 'spoke)" stroke="#15191d" stroke-width=".8"/><rect x="6" y="166" width="18" height="30" rx="4" fill="url(#' + u + 'spoke)" stroke="#15191d" stroke-width=".8"/>' +
+    '</svg>' +
+    '<div class="v-inside"><i class="v-core"></i><i class="v-shelf"></i></div>' +
+    '<div class="v-seam"></div>' +
+    '<div class="v-door"><div class="v-depth">' + '<i></i>'.repeat(8) + '</div>' +
+      '<div class="v-face"></div>' +
+      '<svg class="v-art" viewBox="0 0 300 300" aria-hidden="true">' + defs.replace(/id="v\d+/g, 'id="' + u + 'd') .replace(/url\(#v\d+/g, 'url(#' + u + 'd') +
+        '<g class="v-locks">' + lockBolts.replace(/url\(#v\d+/g, 'url(#' + u + 'd') + '</g>' +
+        '<circle cx="150" cy="150" r="111" fill="none" stroke="#0b0e11" stroke-width="2"/><circle cx="150" cy="150" r="109" fill="none" stroke="#c9ced3" stroke-opacity=".35" stroke-width="1"/>' +
+        rings + rimBolts.replace(/url\(#v\d+/g, 'url(#' + u + 'd') +
+        '<g class="vwheel">' + spokes.replace(/url\(#v\d+/g, 'url(#' + u + 'd') + '<circle cx="150" cy="150" r="22" fill="url(#' + u + 'dhub)" stroke="#15191d" stroke-width="1"/></g>' +
+        '<g class="vdial"><circle cx="150" cy="150" r="44.5" fill="url(#' + u + 'dhub)" stroke="#111417" stroke-width="1"/>' + knurl + '<circle cx="150" cy="150" r="40" fill="url(#' + u + 'ddialf)" stroke="#000" stroke-opacity=".6"/>' + ticks + '<g class="v-nums">' + nums + '</g>' +
+          '<circle cx="150" cy="150" r="17" fill="url(#' + u + 'dhub)" stroke="#0d1013" stroke-width="1"/><circle cx="150" cy="150" r="9" fill="url(#' + u + 'ddialf)"/><ellipse cx="146" cy="145" rx="5" ry="3" fill="#fff" opacity=".35"/></g>' +
+        '<path class="v-index" d="M150 103.5 145.6 96h8.8z" fill="url(#' + u + 'dbrass)" stroke="#5c4512" stroke-width=".5"/>' +
+      '</svg>' +
+      '<div class="v-spec"></div>' +
+    '</div>' +
+  '</div></div>';
 };
-/* gold dust drifting upward (loading screen and sign-in art) */
+/* the door leans towards the pointer and the light moves across the steel */
+document.addEventListener('pointermove', e => {
+  const v = e.target && e.target.closest && e.target.closest('.vault'); if (!v || v.classList.contains('open')) return;
+  const r = v.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * 2 - 1, y = (e.clientY - r.top) / r.height * 2 - 1;
+  v.style.setProperty('--rx', Math.max(-1, Math.min(1, x)).toFixed(3)); v.style.setProperty('--ry', Math.max(-1, Math.min(1, y)).toFixed(3));
+  v.classList.add('hover');
+}, {passive: true});
+document.addEventListener('pointerout', e => {
+  const v = e.target && e.target.closest && e.target.closest('.vault'); if (!v || (e.relatedTarget && v.contains(e.relatedTarget))) return;
+  v.classList.remove('hover'); v.style.setProperty('--rx', 0); v.style.setProperty('--ry', 0);
+});
+/* the unlock-and-open sequence, shared by the loading screen and the sign-in art */
+LV.vaultOpen = (v, done) => {
+  if (!v || v._seq) return; v._seq = 1;
+  const at = (ms, fn) => setTimeout(fn, LV.reduced() ? Math.min(ms, 120) : ms);
+  v.style.setProperty('--rx', 0); v.style.setProperty('--ry', 0);
+  const d = v.querySelector('.vdial'), m = (getComputedStyle(d).transform || '').match(/matrix\(([^)]+)\)/);
+  let a = 0; if (m) { const p = m[1].split(',').map(Number); a = Math.atan2(p[1], p[0]) * 180 / Math.PI; }
+  d.style.animation = 'none'; d.style.transform = 'rotate(' + a.toFixed(2) + 'deg)'; void d.getBoundingClientRect();
+  v.classList.remove('spin', 'calm', 'hover'); v.classList.add('unlock');        /* dial lands on the last number */
+  requestAnimationFrame(() => { d.style.transform = 'rotate(' + (Math.ceil((a + 70) / 36) * 36) + 'deg)'; });
+  at(420, () => v.classList.add('turn'));                                          /* wheel turns, bolts withdraw */
+  at(1150, () => v.classList.add('crack'));                                        /* the seal breaks, light leaks */
+  at(1450, () => { v.classList.add('open'); if (done) done(); });                  /* the door swings */
+};
+/* dust motes drifting in the light (loading screen and sign-in art) */
 LV.particles = function (canvas, o) {
   o = o || {}; const ctx = canvas && canvas.getContext && canvas.getContext('2d'); if (!ctx) return {stop() {}, burst() {}};
   let W = 0, H = 0, run = true; const P = [], dpr = Math.min(2, window.devicePixelRatio || 1);
   const size = () => { W = canvas.clientWidth || 800; H = canvas.clientHeight || 600; canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
   size(); window.addEventListener('resize', size);
-  const n = o.n || Math.round(Math.min(120, W * H / 13000));
-  for (let i = 0; i < n; i++) P.push({x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.7 + .3, s: Math.random() * .35 + .08, a: Math.random() * .6 + .15, t: Math.random() * 6.28, w: Math.random() * .6 + .2});
+  const n = o.n || Math.round(Math.min(70, W * H / 22000));
+  for (let i = 0; i < n; i++) P.push({x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.1 + .25, s: Math.random() * .16 + .03, a: Math.random() * .4 + .08, t: Math.random() * 6.28, w: Math.random() * .5 + .15});
   const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const draw = () => {
     ctx.clearRect(0, 0, W, H);
     P.forEach(p => {
-      if (!still) { p.t += .012; p.y -= p.s * (o.burst ? 3.2 : 1); p.x += Math.sin(p.t) * p.w * .3; if (p.y < -5) { p.y = H + 5; p.x = Math.random() * W; } }
-      const tw = .55 + .45 * Math.sin(p.t * 2.1);
-      ctx.fillStyle = 'rgba(232,207,142,' + (p.a * tw).toFixed(3) + ')'; ctx.shadowColor = 'rgba(242,214,140,.8)'; ctx.shadowBlur = p.r * 4;
+      if (!still) { p.t += .008; p.y -= p.s * (o.burst ? 6 : 1); p.x += Math.sin(p.t) * p.w * .25 + (o.burst ? (p.x - W / 2) * .004 : 0); if (p.y < -5 || p.x < -5 || p.x > W + 5) { p.y = H + 5; p.x = Math.random() * W; } }
+      const tw = .6 + .4 * Math.sin(p.t * 1.7);
+      ctx.fillStyle = 'rgba(244,232,200,' + (p.a * tw * (o.burst ? 1.8 : 1)).toFixed(3) + ')';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
     });
   };
@@ -156,30 +214,33 @@ LV.particles = function (canvas, o) {
   return {stop() { run = false; window.removeEventListener('resize', size); }, burst() { o.burst = true; }};
 };
 /* Full-screen loading screen while the session is restored. */
-const BOOT_LINES = ['Checking the combination…', 'Turning the wheel…', 'Releasing the bolts…', 'Opening your vault…', 'Counting your leads…'];
+const BOOT_LINES = ['Dialling the combination', 'Checking your credentials', 'Withdrawing the bolts', 'Counting your leads'];
 LV.boot = {
   show(msg) {
     let b = document.getElementById('lvBoot');
     if (!b) {
       b = document.createElement('div'); b.id = 'lvBoot'; b.className = 'boot'; b.setAttribute('role', 'status');
-      b.innerHTML = '<canvas class="boot-dust"></canvas><div class="boot-rays"></div><div class="boot-in">' + LV.vault('spin') +
-        '<div class="boot-word"><span>Leadvault</span></div><div class="boot-bar"><i></i></div><div class="boot-msg" aria-live="polite"></div></div>';
+      b.innerHTML = '<div class="boot-spot"></div><canvas class="boot-dust"></canvas><div class="boot-flood"></div><div class="boot-in"><div class="boot-stage">' + LV.vault('spin') + '</div>' +
+        '<div class="boot-word">LEADVAULT</div><div class="boot-bar"><i></i></div><div class="boot-msg" aria-live="polite"></div></div>';
       document.body.appendChild(b);
       b._fx = LV.particles(b.querySelector('canvas'));
-      let k = 1; b._lines = setInterval(() => { if (b._custom) return; const m = b.querySelector('.boot-msg'); m.classList.remove('in'); void m.offsetWidth; m.textContent = BOOT_LINES[k++ % BOOT_LINES.length]; m.classList.add('in'); }, 1500);
+      let k = 1; b._lines = setInterval(() => { if (b._custom) return; const m = b.querySelector('.boot-msg'); m.classList.remove('in'); void m.offsetWidth; m.textContent = BOOT_LINES[k++ % BOOT_LINES.length]; m.classList.add('in'); }, 1700);
     }
-    b.classList.remove('gone', 'opening'); b.querySelector('.vault').className = 'vault spin';
+    b.classList.remove('gone', 'opening', 'flood'); b._opening = 0; const v = b.querySelector('.vault'); v._seq = 0; v.className = 'vault spin';
     const m = b.querySelector('.boot-msg'); m.textContent = msg || BOOT_LINES[0]; m.classList.add('in'); b._custom = false;
   },
   msg(t) { const b = document.getElementById('lvBoot'); if (b) { b._custom = true; b.querySelector('.boot-msg').textContent = t; } },
   open() {
     const b = document.getElementById('lvBoot'); if (!b || b._opening) return; b._opening = 1;
-    const v = b.querySelector('.vault'); clearInterval(b._lines); b._custom = true;
-    b.querySelector('.boot-msg').textContent = 'Unlocked';
-    v.classList.add('unlock'); if (b._fx) b._fx.burst();
-    setTimeout(() => { v.classList.add('open'); b.classList.add('opening'); }, 560);
-    setTimeout(() => b.classList.add('gone'), 1300);
-    setTimeout(() => { if (b._fx) b._fx.stop(); b.remove(); }, 2200);
+    clearInterval(b._lines); b._custom = true;
+    const m = b.querySelector('.boot-msg'); m.textContent = 'Access granted'; m.classList.add('ok');
+    b.classList.add('opening');
+    const vr = b.querySelector('.vault').getBoundingClientRect(), fl = b.querySelector('.boot-flood');
+    fl.style.left = (vr.left + vr.width / 2) + 'px'; fl.style.top = (vr.top + vr.height / 2) + 'px';
+    const R = LV.reduced() ? .15 : 1;
+    LV.vaultOpen(b.querySelector('.vault'), () => { if (b._fx) b._fx.burst(); setTimeout(() => b.classList.add('flood'), 700 * R); });
+    setTimeout(() => b.classList.add('gone'), 3150 * R);
+    setTimeout(() => { if (b._fx) b._fx.stop(); b.remove(); }, 4100 * R);
   }
 };
 /* ---------- motion helpers ---------- */
