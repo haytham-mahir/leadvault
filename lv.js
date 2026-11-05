@@ -318,4 +318,6 @@ LV.delta = (now, prev, invert) => {
   const d = Math.round((now - prev) / prev * 100), up = d >= 0;
   return '<span class="delta ' + (d === 0 ? '' : ((up ? !invert : invert) ? 'up' : 'down')) + '">' + (up ? '▲ ' : '▼ ') + Math.abs(d) + '% vs before</span>';
 };
+/* Loading placeholder rows. The dashboard swaps in its richer set; the console uses this one. */
+LV.skel = () => [1, 2, 3, 4].map(() => '<div class="row"><div class="sk" style="width:34px;height:34px;border-radius:50%"></div><div style="flex:1"><div class="sk" style="width:60%;height:12px"></div><div class="sk" style="width:40%;height:10px;margin-top:6px"></div></div></div>').join('');
 })();
