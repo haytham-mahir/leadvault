@@ -8,7 +8,7 @@
 const {esc, ic, api, fmt, when} = LV;
 const app = document.getElementById('app');
 const SKEY = 'lv_portal_session';
-const PERIODS = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['month', 'This month'], ['lastmonth', 'Last month']];
+const PERIODS = [['7', '7 days'], ['30', '30 days'], ['90', '90 days'], ['180', '6 months'], ['365', '12 months'], ['all', 'All time'], ['month', 'This month'], ['lastmonth', 'Last month']];
 const S = LV.S = {session: LV.ss.get(SKEY) || '', me: null, domain: '', period: LV.ls.get('lv_period', '30'), dash: 0, data: null, loading: false, editing: false, layout: null, marks: {}, crm: null};
 
 /* ---------------- boot ---------------- */
