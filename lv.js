@@ -80,7 +80,7 @@ const P = LV.P = {
   download: 'M12 3v12M7 10l5 5 5-5M5 21h14', move: 'M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20', shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
   star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z', flag: 'M4 22V4M4 4h13l-2 4 2 4H4', tag: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5', more: 'M12 12h.01M19 12h.01M5 12h.01',
-  undo: 'M3 7v6h6M3.5 13A9 9 0 1 0 6 6.3L3 9', task: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'
+  undo: 'M3 7v6h6M3.5 13A9 9 0 1 0 6 6.3L3 9', wa: 'M3.5 20.5l1.3-4.2A8.5 8.5 0 1 1 8 19.4zM9 8.5c0 3 3.5 6.5 6.5 6.5l1.2-1.4-2-1-1 .9c-1-.4-2.4-1.8-2.8-2.8l.9-1-1-2z', wand: 'M15 4V2M15 10V8M11 6h2M17 6h2M4 20 14 10M12 4l1.5 1.5M18 4l-1.5 1.5', drag: 'M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01', resize: 'M21 15v6h-6M21 21l-7-7M3 9V3h6M3 3l7 7', heat: 'M3 3h4v4H3zM10 3h4v4h-4zM17 3h4v4h-4zM3 10h4v4H3zM10 10h4v4h-4zM17 10h4v4h-4zM3 17h4v4H3zM10 17h4v4h-4zM17 17h4v4h-4z', device: 'M5 3h10v18H5zM9 18h2M17 8h4v13h-4z', table: 'M3 4h18v16H3zM3 10h18M3 15h18M9 4v16', task: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'
 };
 LV.ic = (n, s) => '<svg viewBox="0 0 24 24" width="' + (s || 18) + '" height="' + (s || 18) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (P[n] || P.spark) + '"/></svg>';
 
@@ -104,16 +104,116 @@ LV.dial = (cls) => {
     '</svg></div>';
 };
 
-/* Full-screen boot loader (while the session is restored). */
+/* ---------- the vault door (loading screen) ----------
+   A brass-rimmed vault door: the combination dial spins, the wheel turns, eight bolts
+   retract and the door swings open on its hinge into warm light. */
+LV.vault = (cls) => {
+  const c = 120; let rivets = '', bolts = '', ticks = '', spokes = '';
+  for (let i = 0; i < 32; i++) { const a = i / 32 * Math.PI * 2; rivets += '<circle cx="' + (c + 104 * Math.cos(a)).toFixed(1) + '" cy="' + (c + 104 * Math.sin(a)).toFixed(1) + '" r="2.1" fill="url(#vB2)"/>'; }
+  for (let i = 0; i < 8; i++) bolts += '<g transform="rotate(' + (i * 45 + 22.5) + ' 120 120)"><rect class="vbolt" x="194" y="113" width="30" height="14" rx="3" fill="url(#vB)" stroke="#6E5418" stroke-width=".8"/></g>';
+  for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2, L = i % 4 === 0, r1 = L ? 23 : 26; ticks += '<line x1="' + (c + r1 * Math.cos(a)).toFixed(1) + '" y1="' + (c + r1 * Math.sin(a)).toFixed(1) + '" x2="' + (c + 30 * Math.cos(a)).toFixed(1) + '" y2="' + (c + 30 * Math.sin(a)).toFixed(1) + '" stroke="#E8CF8E" stroke-width="' + (L ? 1.6 : .7) + '"/>'; }
+  for (let i = 0; i < 3; i++) spokes += '<g transform="rotate(' + (i * 120) + ' 120 120)"><rect x="117" y="62" width="6" height="40" rx="3" fill="url(#vB)"/><circle cx="120" cy="60" r="7.5" fill="url(#vB)" stroke="#6E5418" stroke-width=".8"/><circle cx="118" cy="58" r="2.2" fill="#FFF3CF" opacity=".7"/></g>';
+  return '<div class="vault ' + (cls || '') + '"><svg class="vframe" viewBox="0 0 240 240" aria-hidden="true"><defs>' +
+    '<linearGradient id="vB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3DC9A"/><stop offset=".45" stop-color="#C29B3F"/><stop offset=".7" stop-color="#E2C47A"/><stop offset="1" stop-color="#8A6B21"/></linearGradient>' +
+    '<linearGradient id="vB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF0C2"/><stop offset="1" stop-color="#9C7A2A"/></linearGradient>' +
+    '<radialGradient id="vD" cx=".38" cy=".32" r=".85"><stop offset="0" stop-color="#1D6B52"/><stop offset=".55" stop-color="#0F3D2E"/><stop offset="1" stop-color="#06201A"/></radialGradient>' +
+    '<radialGradient id="vG" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF6DA"/><stop offset=".35" stop-color="#F1D68C" stop-opacity=".9"/><stop offset="1" stop-color="#C29B3F" stop-opacity="0"/></radialGradient>' +
+    '<linearGradient id="vS" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
+    '<clipPath id="vC"><circle cx="120" cy="120" r="96"/></clipPath></defs>' +
+    '<circle cx="120" cy="120" r="118" fill="none" stroke="rgba(217,184,104,.18)" stroke-width="1"/>' +
+    '<circle class="vhalo" cx="120" cy="120" r="112" fill="none" stroke="url(#vB)" stroke-width="10"/>' + rivets +
+    '<circle class="vglow" cx="120" cy="120" r="98" fill="url(#vG)"/>' +
+    '<path d="M120 1 113 -9h14z" fill="#E8CF8E"/></svg><div class="vdoorwrap"><svg viewBox="0 0 240 240" aria-hidden="true">' +
+    '<g class="vdoor">' + bolts +
+      '<circle cx="120" cy="120" r="97" fill="url(#vD)" stroke="url(#vB)" stroke-width="3"/>' +
+      '<circle cx="120" cy="120" r="84" fill="none" stroke="#C29B3F" stroke-opacity=".55" stroke-width="1"/>' +
+      '<circle cx="120" cy="120" r="78" fill="none" stroke="#C29B3F" stroke-opacity=".25" stroke-width="6" stroke-dasharray="2 6"/>' +
+      '<g class="vwheel">' + spokes + '<circle cx="120" cy="120" r="36" fill="#0A2A20" stroke="url(#vB)" stroke-width="3"/></g>' +
+      '<g class="vdial">' + ticks + '<circle cx="120" cy="120" r="19" fill="url(#vD)" stroke="#E8CF8E" stroke-width="1.4"/><path d="M114.5 115.5 120 125l5.5-9.5" fill="none" stroke="#F3DC9A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+      '<g clip-path="url(#vC)"><rect class="vsheen" x="-60" y="0" width="60" height="240" fill="url(#vS)"/></g>' +
+    '</g></svg></div></div>';
+};
+/* gold dust drifting upward (loading screen and sign-in art) */
+LV.particles = function (canvas, o) {
+  o = o || {}; const ctx = canvas && canvas.getContext && canvas.getContext('2d'); if (!ctx) return {stop() {}, burst() {}};
+  let W = 0, H = 0, run = true; const P = [], dpr = Math.min(2, window.devicePixelRatio || 1);
+  const size = () => { W = canvas.clientWidth || 800; H = canvas.clientHeight || 600; canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  size(); window.addEventListener('resize', size);
+  const n = o.n || Math.round(Math.min(120, W * H / 13000));
+  for (let i = 0; i < n; i++) P.push({x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.7 + .3, s: Math.random() * .35 + .08, a: Math.random() * .6 + .15, t: Math.random() * 6.28, w: Math.random() * .6 + .2});
+  const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const draw = () => {
+    ctx.clearRect(0, 0, W, H);
+    P.forEach(p => {
+      if (!still) { p.t += .012; p.y -= p.s * (o.burst ? 3.2 : 1); p.x += Math.sin(p.t) * p.w * .3; if (p.y < -5) { p.y = H + 5; p.x = Math.random() * W; } }
+      const tw = .55 + .45 * Math.sin(p.t * 2.1);
+      ctx.fillStyle = 'rgba(232,207,142,' + (p.a * tw).toFixed(3) + ')'; ctx.shadowColor = 'rgba(242,214,140,.8)'; ctx.shadowBlur = p.r * 4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.28); ctx.fill();
+    });
+  };
+  const tick = () => { if (!run) return; draw(); if (!still) requestAnimationFrame(tick); };
+  tick();
+  return {stop() { run = false; window.removeEventListener('resize', size); }, burst() { o.burst = true; }};
+};
+/* Full-screen loading screen while the session is restored. */
+const BOOT_LINES = ['Checking the combination…', 'Turning the wheel…', 'Releasing the bolts…', 'Opening your vault…', 'Counting your leads…'];
 LV.boot = {
   show(msg) {
     let b = document.getElementById('lvBoot');
-    if (!b) { b = document.createElement('div'); b.id = 'lvBoot'; b.className = 'boot'; b.setAttribute('role', 'status'); b.innerHTML = '<div class="boot-in">' + LV.dial() + '<div class="boot-word">Leadvault</div><div class="boot-msg"></div></div>'; document.body.appendChild(b); }
-    b.classList.remove('gone'); b.querySelector('.dial').classList.remove('open');
-    b.querySelector('.boot-msg').textContent = msg || 'Opening your vault…';
+    if (!b) {
+      b = document.createElement('div'); b.id = 'lvBoot'; b.className = 'boot'; b.setAttribute('role', 'status');
+      b.innerHTML = '<canvas class="boot-dust"></canvas><div class="boot-rays"></div><div class="boot-in">' + LV.vault('spin') +
+        '<div class="boot-word"><span>Leadvault</span></div><div class="boot-bar"><i></i></div><div class="boot-msg" aria-live="polite"></div></div>';
+      document.body.appendChild(b);
+      b._fx = LV.particles(b.querySelector('canvas'));
+      let k = 1; b._lines = setInterval(() => { if (b._custom) return; const m = b.querySelector('.boot-msg'); m.classList.remove('in'); void m.offsetWidth; m.textContent = BOOT_LINES[k++ % BOOT_LINES.length]; m.classList.add('in'); }, 1500);
+    }
+    b.classList.remove('gone', 'opening'); b.querySelector('.vault').className = 'vault spin';
+    const m = b.querySelector('.boot-msg'); m.textContent = msg || BOOT_LINES[0]; m.classList.add('in'); b._custom = false;
   },
-  msg(m) { const b = document.getElementById('lvBoot'); if (b) b.querySelector('.boot-msg').textContent = m; },
-  open() { const b = document.getElementById('lvBoot'); if (!b) return; b.querySelector('.dial').classList.add('open'); b.classList.add('gone'); setTimeout(() => b.remove(), 900); }
+  msg(t) { const b = document.getElementById('lvBoot'); if (b) { b._custom = true; b.querySelector('.boot-msg').textContent = t; } },
+  open() {
+    const b = document.getElementById('lvBoot'); if (!b || b._opening) return; b._opening = 1;
+    const v = b.querySelector('.vault'); clearInterval(b._lines); b._custom = true;
+    b.querySelector('.boot-msg').textContent = 'Unlocked';
+    v.classList.add('unlock'); if (b._fx) b._fx.burst();
+    setTimeout(() => { v.classList.add('open'); b.classList.add('opening'); }, 560);
+    setTimeout(() => b.classList.add('gone'), 1300);
+    setTimeout(() => { if (b._fx) b._fx.stop(); b.remove(); }, 2200);
+  }
+};
+/* ---------- motion helpers ---------- */
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+LV.reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+LV.countUp = function (root) {
+  if (!root || LV.reduced()) return;
+  root.querySelectorAll('[data-n]').forEach(el => {
+    if (el._counted) return; el._counted = 1;
+    const to = Number(el.getAttribute('data-n')); if (!isFinite(to) || to === 0) return;
+    const txt = el.textContent, money = /\$/.test(txt), pct = /%/.test(txt), dec = /\.\d/.test(txt) ? 1 : 0, t0 = performance.now(), dur = Math.min(1500, 650 + Math.log10(Math.abs(to) + 1) * 240);
+    const f = v => money ? LV.money(v) : (dec ? v.toFixed(dec) : LV.fmt(Math.round(v))) + (pct ? '%' : '');
+    const step = now => { const k = Math.min(1, (now - t0) / dur); el.textContent = f(to * easeOut(k)); if (k < 1) requestAnimationFrame(step); else el.textContent = txt; };
+    requestAnimationFrame(step);
+  });
+};
+/* soft light that follows the pointer across cards */
+document.addEventListener('pointermove', e => {
+  const w = e.target && e.target.closest && e.target.closest('.w,.glow');
+  if (!w) return; const r = w.getBoundingClientRect();
+  w.style.setProperty('--mx', (e.clientX - r.left) + 'px'); w.style.setProperty('--my', (e.clientY - r.top) + 'px');
+}, {passive: true});
+/* heatmap: rows x cols */
+LV.heat = function (rows, cols, val, o) {
+  o = o || {}; let max = 0; rows.forEach((r, i) => cols.forEach((c, j) => { max = Math.max(max, val(i, j)); }));
+  if (!max) return '<div class="empty"><b>Nothing yet</b>No data for this period.</div>';
+  return '<div class="heat" style="--cols:' + cols.length + '"><span></span>' + cols.map((c, j) => '<small class="hc">' + (j % (o.every || 1) === 0 ? esc(c) : '') + '</small>').join('') +
+    rows.map((r, i) => '<small class="hr">' + esc(r) + '</small>' + cols.map((c, j) => { const v = val(i, j); return '<i style="--k:' + (v / max).toFixed(3) + ';animation-delay:' + Math.min(900, (i * cols.length + j) * 4) + 'ms" title="' + esc(r + ' ' + c + ': ' + LV.fmt(v)) + '"></i>'; }).join('')).join('') + '</div>';
+};
+/* simple data table: cols [{h, f(row), n:numeric}] */
+LV.table = function (cols, rows, o) {
+  o = o || {}; if (!rows.length) return '<div class="empty"><b>Nothing yet</b>' + esc(o.empty || 'No data for this period.') + '</div>';
+  return '<div style="overflow:auto"><table class="t"><thead><tr>' + cols.map(c => '<th' + (c.n ? ' class="n"' : '') + '>' + esc(c.h) + '</th>').join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + cols.map(c => '<td' + (c.n ? ' class="n"' : ' style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"') + '>' + c.f(r) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
 };
 
 /* ---------- sign-in gate ---------- */
@@ -121,8 +221,8 @@ LV.boot = {
 LV.gate = function (root, opts) {
   const remembered = LV.ls.get('lv_last_email_' + opts.kind, '');
   root.innerHTML = '<div class="gate">' +
-    '<section class="gate-art"><div class="gate-brand">' + LV.mark(34) + 'Leadvault</div>' +
-      '<div class="gate-hero">' + LV.dial('still') + '<div><h1>' + esc(opts.headline || 'Every lead, kept safe.') + '</h1><p>' + esc(opts.blurb || 'Forms, calls, deals and bookings from every channel, in one place your whole team can trust.') + '</p></div></div>' +
+    '<section class="gate-art"><canvas class="gate-dust"></canvas><div class="gate-brand">' + LV.mark(34) + 'Leadvault</div>' +
+      '<div class="gate-hero">' + LV.vault('calm') + '<div><h1>' + esc(opts.headline || 'Every lead, kept safe.') + '</h1><p>' + esc(opts.blurb || 'Forms, calls, deals and bookings from every channel, in one place your whole team can trust.') + '</p></div></div>' +
       '<div class="gate-foot">' + (opts.foot || [['5 min', 'idle sign-out'], ['Live', 'from your CRM'], ['Private', 'by design']]).map(f => '<div><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</div>').join('') + '</div></section>' +
     '<section class="gate-form"><form class="gate-card" novalidate>' +
       '<h2>' + esc(opts.title || 'Sign in') + '</h2><p class="sub">' + esc(opts.sub || 'Use the email and password your account manager sent you.') + '</p>' +
@@ -137,6 +237,7 @@ LV.gate = function (root, opts) {
       '<div class="gate-small">' + LV.ic('lock', 15) + '<span>You’ll be signed out after 5 minutes without activity.</span></div>' +
     '</form></section></div>';
   const f = root.querySelector('form'), err = root.querySelector('.gate-err'), btn = f.querySelector('button[type=submit]');
+  const dust = root.querySelector('.gate-dust'); if (dust) { if (LV._gateFx) LV._gateFx.stop(); LV._gateFx = LV.particles(dust, {n: 70}); }
   let keyMode = false;
   f.querySelector('[data-show]').addEventListener('click', e => { const i = f.password; i.type = i.type === 'password' ? 'text' : 'password'; e.target.textContent = i.type === 'password' ? 'Show' : 'Hide'; });
   if (opts.keyMode) f.querySelector('[data-switch]').addEventListener('click', e => {
@@ -149,15 +250,15 @@ LV.gate = function (root, opts) {
     const email = f.email.value.trim(), pw = f.password.value, key = keyMode ? f.key.value.trim() : '';
     if (!keyMode && (!email || !pw)) return fail('Enter your email and password.');
     if (keyMode && !key) return fail('Enter the owner key.');
-    btn.classList.add('busy'); btn.disabled = true; const dl = root.querySelector('.gate-art .dial'); if (dl) dl.classList.remove('still');
+    btn.classList.add('busy'); btn.disabled = true; const dl = root.querySelector('.gate-art .vault'); if (dl) { dl.classList.remove('calm'); dl.classList.add('spin'); }
     if (f.remember && f.remember.checked) LV.ls.set('lv_last_email_' + opts.kind, email); else LV.ls.del('lv_last_email_' + opts.kind);
     const r = await opts.onSubmit(email, pw, {key});
     btn.classList.remove('busy'); btn.disabled = false;
-    if (r && r.error) { fail(r.error); if (dl) dl.classList.add('still'); }
+    if (r && r.error) { fail(r.error); if (dl) { dl.classList.remove('spin'); dl.classList.add('calm'); } }
   });
   function fail(m) { err.querySelector('span').textContent = m; err.classList.add('on'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); }
   /* the dial unlocks while signing in */
-  return {unlock() { const d = root.querySelector('.gate-art .dial'); if (d) d.classList.add('open'); }};
+  return {unlock() { const d = root.querySelector('.gate-art .vault'); if (d) d.classList.add('unlock'); }};
 };
 
 /* ---------- 5-minute idle sign-out ---------- */
@@ -260,13 +361,15 @@ LV.lineChart = function (el, labels, series, o) {
   const every = Math.max(1, Math.ceil(n / 7));
   labels.forEach((t, i) => { if (i % every === 0 || i === n - 1) g += '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="var(--ink-3)">' + new Date(t).toLocaleDateString('en-CA', {month: 'short', day: 'numeric'}) + '</text>'; });
   let paths = '';
+  const gid = 'g' + Math.random().toString(36).slice(2, 8), c0 = (series[0] && series[0].color) || SER[0];
   series.forEach((s, si) => {
     const c = s.color || SER[si], pts = s.vals.map((v, i) => [x(i), y(v)]);
     const d = smooth(pts);
-    if (si === 0 && !o.noArea) paths += '<path d="' + d + ' L' + x(n - 1) + ',' + y(0) + ' L' + x(0) + ',' + y(0) + 'Z" fill="' + c + '" opacity=".09"/>';
-    paths += '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + (si === 0 ? 2.4 : 1.8) + '"' + (s.dash ? ' stroke-dasharray="4 4"' : '') + ' stroke-linecap="round"/>';
+    if (si === 0 && !o.noArea) paths += '<path class="ar" d="' + d + ' L' + x(n - 1) + ',' + y(0) + ' L' + x(0) + ',' + y(0) + 'Z" fill="url(#' + gid + ')"/>';
+    paths += '<path class="ln' + (s.dash ? ' dash' : '') + '" pathLength="1" style="animation-delay:' + (si * .15) + 's" d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + (si === 0 ? 2.4 : 1.8) + '"' + (s.dash ? ' stroke-dasharray="4 4"' : '') + ' stroke-linecap="round"/>';
+    if (n <= 45 && si === 0) { const mi = s.vals.indexOf(Math.max(...s.vals)); if (s.vals[mi] > 0) paths += '<circle class="pk" cx="' + x(mi) + '" cy="' + y(s.vals[mi]) + '" r="4" fill="#fff" stroke="' + c + '" stroke-width="2.2"/>'; }
   });
-  el.innerHTML = '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" role="img" aria-label="' + esc(o.label || 'Chart') + '">' + g + paths + '<line class="cur" y1="' + pad.t + '" y2="' + (H - pad.b) + '" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div></div>' +
+  el.innerHTML = '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" role="img" aria-label="' + esc(o.label || 'Chart') + '"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c0 + '" stop-opacity=".26"/><stop offset="1" stop-color="' + c0 + '" stop-opacity="0"/></linearGradient></defs>' + g + paths + '<line class="cur" y1="' + pad.t + '" y2="' + (H - pad.b) + '" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div></div>' +
     (series.length > 1 ? '<div class="legend">' + series.map((s, i) => '<span><i style="background:' + (s.color || SER[i]) + '"></i>' + esc(s.name) + '</span>').join('') + '</div>' : '');
   const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), cur = el.querySelector('.cur');
   svg.addEventListener('mousemove', e => {
@@ -299,10 +402,10 @@ LV.donut = function (items, o) {
     const f = it.v / tot, a2 = a + f * Math.PI * 2, large = f > .5 ? 1 : 0, R = 60, r = 40;
     const p = (ang, rad) => (75 + rad * Math.cos(ang)).toFixed(2) + ',' + (75 + rad * Math.sin(ang)).toFixed(2);
     if (f >= .9999) segs += '<circle cx="75" cy="75" r="50" fill="none" stroke="' + (it.color || SER[i % 8]) + '" stroke-width="20"/>';
-    else segs += '<path d="M' + p(a, R) + ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + p(a2, R) + ' L' + p(a2, r) + ' A' + r + ',' + r + ' 0 ' + large + ' 0 ' + p(a, r) + 'Z" fill="' + (it.color || SER[i % 8]) + '"><title>' + esc(it.k) + ': ' + LV.fmt(it.v) + '</title></path>';
+    else segs += '<path class="dn" style="animation-delay:' + (i * .07) + 's" d="M' + p(a, R) + ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + p(a2, R) + ' L' + p(a2, r) + ' A' + r + ',' + r + ' 0 ' + large + ' 0 ' + p(a, r) + 'Z" fill="' + (it.color || SER[i % 8]) + '"><title>' + esc(it.k) + ': ' + LV.fmt(it.v) + '</title></path>';
     a = a2;
   });
-  return '<div class="donut-wrap"><svg viewBox="0 0 150 150" role="img" aria-label="' + esc(o.label || 'Breakdown') + '">' + segs + '<text x="75" y="73" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="600" font-size="22" fill="var(--ink)">' + LV.fmt(tot) + '</text><text x="75" y="91" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">' + esc(o.unit || 'total') + '</text></svg>' +
+  return '<div class="donut-wrap"><svg viewBox="0 0 150 150" role="img" aria-label="' + esc(o.label || 'Breakdown') + '">' + segs + '<text x="75" y="73" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="600" font-size="22" fill="var(--ink)" data-n="' + tot + '">' + LV.fmt(tot) + '</text><text x="75" y="91" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">' + esc(o.unit || 'total') + '</text></svg>' +
     '<div class="legend">' + items.map((it, i) => '<div><span><i style="background:' + (it.color || SER[i % 8]) + '"></i>' + esc(it.k) + '</span><b class="num">' + LV.fmt(it.v) + ' <small style="color:var(--ink-3);font-weight:500">' + Math.round(it.v / tot * 100) + '%</small></b></div>').join('') + '</div></div>';
 };
 /* items: [{k, v, sub}] */

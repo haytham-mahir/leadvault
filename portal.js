@@ -92,10 +92,11 @@ const okFor = t => { const w = W()[t]; if (!w) return false; const c = client();
 const visIt = it => it.t === 'note' ? (!it.about || okFor(it.about)) : okFor(it.t);
 const visDash = d => d.items.some(it => it.t !== 'note' && visIt(it));
 const canEdit = () => !!(S.me && (S.me.user.preview || S.me.user.write >= 0));
-LV.item = (t, c, x) => Object.assign({id: LV.uid(), t, c: c || (W()[t] && W()[t].c) || 12}, x || {});
+LV.item = (t, gw, x) => Object.assign({id: LV.uid(), t, gw: gw || (W()[t] && W()[t].c) || 12}, x || {});
 function normalizeLayout(L) {
   const fresh = LV.defaultLayout ? LV.defaultLayout(client(), S) : {v: 1, dashes: [{id: 'd1', name: 'Overview', items: []}]};
-  if (!L || !Array.isArray(L.dashes) || !L.dashes.length) return fresh;
+  /* layouts from before the free-form grid (v1) move to the new standard dashboard */
+  if (!L || !Array.isArray(L.dashes) || !L.dashes.length || (L.v || 1) < 2) return fresh;
   /* tabs that appear by themselves once (Website, Google Search, AI, Sales desk, Clients) */
   L.auto = L.auto || {};
   fresh.dashes.forEach(d => { if (d.auto && !L.auto[d.auto]) { L.auto[d.auto] = 1; if (!L.dashes.some(x => x.auto === d.auto)) L.dashes.push(d); } });
@@ -158,30 +159,96 @@ function renderApp(keepScroll) {
 }
 LV.render = renderApp;
 
+/* ---------------- free-form widget grid ----------------
+   12 columns, 30px rows. Every widget has gx/gy (position) and gw/gh (size) in grid units.
+   Arrange mode: drag a card to move it, drag its right edge, bottom edge or corner to resize.
+   Other cards make room and the board settles upward so there are no holes. */
+const COLS = 12, ROW = 30, GAP = 16;
+const defRows = t => { const w = W()[t] || {}; if (w.rh) return w.rh; return ({kpis: 6, chart: 9, list: 9, table: 11, inbox: 12})[w.sk] || 8; };
+const hit2 = (a, b) => a.gx < b.gx + b.gw && b.gx < a.gx + a.gw && a.gy < b.gy + b.gh && b.gy < a.gy + a.gh;
+function sizeOf(it) {
+  if (it.gw == null) it.gw = Math.max(2, Math.min(COLS, it.c || (W()[it.t] || {}).c || 12));
+  if (it.gh == null) it.gh = it.t === 'note' ? (it.text ? 3 : 2) : it.h ? Math.max(3, Math.round((it.h + GAP) / (ROW + GAP))) : defRows(it.t);
+  it.gw = Math.max(2, Math.min(COLS, it.gw)); it.gh = Math.max(2, Math.min(40, it.gh));
+}
+/* place items that have no position yet in the first free slot */
+function pack(items) {
+  const placed = items.filter(i => i.gx != null && i.gy != null);
+  items.forEach(it => {
+    sizeOf(it); if (it.gx != null && it.gy != null) return;
+    for (let y = 0; y < 2000; y++) { let ok = false; for (let x = 0; x <= COLS - it.gw; x++) { it.gx = x; it.gy = y; if (!placed.some(p => hit2(p, it))) { ok = true; break; } } if (ok) break; }
+    placed.push(it);
+  });
+}
+/* everything floats up as far as it can; `fixed` (the card being dragged) keeps its spot */
+function settle(items, fixed) {
+  const done = fixed ? [fixed] : [];
+  items.filter(i => i !== fixed).sort((a, b) => a.gy - b.gy || a.gx - b.gx).forEach(it => {
+    it.gx = Math.max(0, Math.min(COLS - it.gw, it.gx));
+    let y = 0; while (done.some(p => hit2(p, Object.assign({}, it, {gy: y})))) y++;
+    it.gy = y; done.push(it);
+  });
+}
+function gridMetrics(grid) { const Wd = grid.clientWidth || 1200, cw = (Wd - (COLS - 1) * GAP) / COLS; grid.style.setProperty('--cw', (cw + GAP) + 'px'); return {cw, Wd}; }
+const pxOf = (it, cw) => ({left: it.gx * (cw + GAP), top: it.gy * (ROW + GAP), width: it.gw * cw + (it.gw - 1) * GAP, height: it.gh * ROW + (it.gh - 1) * GAP});
+function placeAll(grid, list, extra) {
+  const {cw, Wd} = gridMetrics(grid), stack = Wd < 760;
+  grid.classList.toggle('stack', stack);
+  if (stack) { list.slice().sort((a, b) => a.gy - b.gy || a.gx - b.gx).forEach((it, i) => { const el = grid.querySelector('[data-id="' + it.id + '"]'); if (el) el.style.order = i; }); grid.style.height = ''; return; }
+  let bottom = 0;
+  list.forEach(it => { const el = grid.querySelector('[data-id="' + it.id + '"]'); if (!el || el.classList.contains('lift')) return; const p = pxOf(it, cw); Object.assign(el.style, {left: p.left + 'px', top: p.top + 'px', width: p.width + 'px', height: p.height + 'px'}); bottom = Math.max(bottom, it.gy + it.gh); });
+  list.forEach(it => { bottom = Math.max(bottom, it.gy + it.gh); });
+  grid.style.height = Math.max(0, (bottom + (extra || 0)) * (ROW + GAP) - GAP) + 'px';
+}
+
 function drawGrid() {
   const grid = document.getElementById('grid'); if (!grid) return;
   const dash = curDash(); if (!dash) return;
+  grid.className = 'grid free';
+  pack(dash.items);
   const items = S.editing ? dash.items : dash.items.filter(visIt);
-  if (!items.length) { grid.innerHTML = '<div class="w" style="--c:12"><div class="empty"><b>This tab is empty</b>' + (canEdit() ? 'Choose Arrange, then Add widget.' : 'Nothing to show yet.') + '</div></div>'; return; }
-  grid.innerHTML = items.map(it => {
+  if (!items.length) { grid.className = 'grid'; grid.style.height = ''; grid.innerHTML = '<div class="w reveal" style="--c:12"><div class="empty"><b>This tab is empty</b>' + (canEdit() ? 'Choose Arrange, then Add widget.' : 'Nothing to show yet.') + '</div></div>'; return; }
+  /* in view mode hidden cards leave no holes: settle a copy */
+  const view = S.editing ? items : items.map(i => Object.assign({}, i));
+  if (!S.editing) settle(view);
+  grid.innerHTML = view.map((it, n) => {
     const w = W()[it.t] || {t: it.t, ic: 'spark'};
-    if (it.t === 'note') return '<section class="w note" style="--c:' + (it.c || 12) + '" data-id="' + it.id + '"' + (S.editing ? ' draggable="true"' : '') + '>' + editBtns(it) + '<h2>' + esc(it.title || 'Heading') + '</h2>' + (it.text ? '<p>' + esc(it.text) + '</p>' : '') + '</section>';
-    return '<section class="w' + (it.h ? ' fixed' : '') + '" style="--c:' + (it.c || w.c || 12) + (it.h ? ';--h:' + it.h + 'px' : '') + '" data-id="' + it.id + '"' + (S.editing ? ' draggable="true"' : '') + '>' + editBtns(it) +
-      '<div class="wh"><div class="wic" style="--t:' + (w.tint || 'var(--vault)') + '">' + ic(w.ic, 18) + '</div><div style="min-width:0"><h3>' + esc(it.title || w.t) + '</h3><small>' + esc(w.d || '') + '</small></div><div class="acts" data-acts></div></div>' +
+    const hand = S.editing ? '<span class="rz rz-e" data-rz="e"></span><span class="rz rz-s" data-rz="s"></span><span class="rz rz-se" data-rz="se"></span>' : '';
+    if (it.t === 'note') return '<section class="w note reveal" style="--i:' + n + '" data-id="' + it.id + '">' + editBtns(it) + hand + '<h2>' + esc(it.title || 'Heading') + '</h2>' + (it.text ? '<p>' + esc(it.text) + '</p>' : '') + '</section>';
+    return '<section class="w' + (w.insight ? ' note ins' : '') + ' reveal" style="--i:' + n + '" data-id="' + it.id + '">' + editBtns(it) + hand +
+      '<div class="wh"><div class="wic" style="--t:' + (w.tint || 'var(--vault)') + '">' + ic(w.ic, 18) + '</div><div style="min-width:0"><h3>' + esc(it.title || w.t) + '</h3>' + (w.d ? '<small>' + esc(w.d) + '</small>' : '') + '</div><div class="acts" data-acts></div></div>' +
       '<div class="wb" data-body>' + (S.data && !S.loading ? '' : skel(w.sk)) + '</div></section>';
   }).join('');
-  if (S.data && !S.loading) items.forEach(it => {
-    if (it.t === 'note') return;
-    const w = W()[it.t], el = grid.querySelector('[data-id="' + it.id + '"]'); if (!w || !el) return;
-    try { w.draw(el.querySelector('[data-body]'), {d: S.data, it, S, acts: el.querySelector('[data-acts]'), client: client()}); }
-    catch (e) { console.error(it.t, e); el.querySelector('[data-body]').innerHTML = '<div class="empty"><b>This widget couldn’t draw</b>' + esc(e.message) + '</div>'; }
-  });
+  placeAll(grid, view, S.editing ? 6 : 0);
+  requestAnimationFrame(() => grid.classList.add('ready'));
+  if (S.data && !S.loading) view.forEach(it => drawOne(grid, it));
   if (S.editing) wireEdit(grid, dash);
+  watchGrid(grid, view);
 }
 LV.drawGrid = drawGrid;
+function drawOne(grid, it) {
+  if (it.t === 'note') return;
+  const w = W()[it.t], el = grid.querySelector('[data-id="' + it.id + '"]'); if (!w || !el) return;
+  const body = el.querySelector('[data-body]'), acts = el.querySelector('[data-acts]'); if (acts) acts.innerHTML = '';
+  try { w.draw(body, {d: S.data, it, S, acts, client: client()}); LV.countUp(body); }
+  catch (e) { console.error(it.t, e); body.innerHTML = '<div class="empty"><b>This widget couldn’t draw</b>' + esc(e.message) + '</div>'; }
+}
+/* re-place on resize; redraw charts once the width settles */
+let gridRO = null;
+function watchGrid(grid, view) {
+  if (gridRO) gridRO.disconnect();
+  if (!window.ResizeObserver) return;
+  let lastW = grid.clientWidth, t = null;
+  gridRO = new ResizeObserver(() => {
+    if (Math.abs(grid.clientWidth - lastW) < 2) return; lastW = grid.clientWidth;
+    placeAll(grid, view, S.editing ? 6 : 0);
+    clearTimeout(t); t = setTimeout(() => { if (S.data && !S.loading) view.forEach(it => { const w = W()[it.t]; if (w && w.sk === 'chart') drawOne(grid, it); }); }, 250);
+  });
+  gridRO.observe(grid);
+}
 
 function editBtns(it) {
-  return '<div class="wedit"><button class="btn sm" type="button" data-size="' + it.id + '" title="Width">' + ic('move', 14) + ' ' + (it.c || 12) + '/12</button>' + (it.t === 'note' ? '<button class="btn sm" type="button" data-note="' + it.id + '">' + ic('edit', 14) + '</button>' : '') + '<button class="btn sm danger" type="button" data-rm="' + it.id + '" aria-label="Remove widget">' + ic('trash', 14) + '</button></div>';
+  return '<div class="wedit">' + (it.t === 'note' ? '<button class="btn sm" type="button" data-note="' + it.id + '" title="Edit text">' + ic('edit', 14) + '</button>' : '<button class="btn sm" type="button" data-ttl="' + it.id + '" title="Rename">' + ic('edit', 14) + '</button>') + '<button class="btn sm" type="button" data-dup="' + it.id + '" title="Duplicate">' + ic('layers', 14) + '</button><button class="btn sm danger" type="button" data-rm="' + it.id + '" aria-label="Remove widget">' + ic('trash', 14) + '</button></div>';
 }
 
 const SK = {
@@ -265,36 +332,82 @@ function bizMenu(btn) {
 
 /* ---------------- widget catalog + edit mode ---------------- */
 function catalog(dash) {
-  const groups = [...new Set(Object.values(W()).map(w => w.g))];
+  const all = Object.keys(W()).filter(k => okFor(k) && !W()[k].hidden);
+  const groups = [...new Set(all.map(k => W()[k].g))];
   const has = new Set(dash.items.map(i => i.t));
-  LV.modal('<div style="display:flex;justify-content:space-between;gap:12px"><div><h2>Add widgets</h2><div style="color:var(--ink-2);font-size:13.5px">Pick what to show on “' + esc(dash.name) + '”.</div></div><button class="iconbtn light" type="button" data-close aria-label="Close">' + ic('x') + '</button></div><div class="cat">' +
-    groups.map(g => { const ks = Object.keys(W()).filter(k => W()[k].g === g && okFor(k)); if (!ks.length) return ''; return '<div class="grp">' + esc(g) + '</div>' + ks.map(k => '<div class="it"><div class="wic" style="--t:' + W()[k].tint + '">' + ic(W()[k].ic, 18) + '</div><div><b>' + esc(W()[k].t) + '</b><small>' + esc(W()[k].d) + '</small></div><button class="btn sm' + (has.has(k) ? '' : ' go') + '" type="button" data-add="' + k + '">' + (has.has(k) ? 'Add again' : 'Add') + '</button></div>').join(''); }).join('') + '</div>', (m, close) => {
-    m.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { dash.items.push(LV.item(b.dataset.add)); saveLayout(); b.textContent = 'Added'; b.classList.remove('go'); b.disabled = true; }));
+  let grp = '', q = '';
+  LV.modal('<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><h2>Add widgets</h2><div style="color:var(--ink-2);font-size:13.5px">Pick what to show on “' + esc(dash.name) + '”. Drag and resize them however you like afterwards.</div></div><button class="iconbtn light" type="button" data-close aria-label="Close">' + ic('x') + '</button></div>' +
+    '<div class="toolbar" style="margin:16px 0 0"><label class="search">' + ic('search', 16) + '<input class="input" type="search" placeholder="Search widgets" data-q aria-label="Search widgets"></label></div>' +
+    '<div class="cat-tabs"><button class="chip on" type="button" data-g="">All · ' + all.length + '</button>' + groups.map(g => '<button class="chip" type="button" data-g="' + esc(g) + '">' + esc(g) + ' · ' + all.filter(k => W()[k].g === g).length + '</button>').join('') + '</div><div class="cat2" data-list></div>', (m, close) => {
+    m.classList.add('wide');
+    const list = m.querySelector('[data-list]');
+    const paint = () => {
+      const ks = all.filter(k => (!grp || W()[k].g === grp) && (!q || (W()[k].t + ' ' + W()[k].d + ' ' + W()[k].g).toLowerCase().indexOf(q) > -1));
+      list.innerHTML = ks.map((k, i) => '<div class="it reveal" style="--i:' + i + '" data-add="' + k + '"><span class="tg">' + (has.has(k) ? '<span class="pill ok">On this tab</span>' : '<span class="pill">' + esc(W()[k].g) + '</span>') + '</span><div class="wic" style="--t:' + W()[k].tint + '">' + ic(W()[k].ic, 18) + '</div><div><b>' + esc(W()[k].t) + '</b><small style="display:block;margin-top:3px">' + esc(W()[k].d) + '</small></div></div>').join('') || '<div class="empty"><b>No widgets match</b>Try another word.</div>';
+      list.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => { dash.items.push(LV.item(b.dataset.add)); has.add(b.dataset.add); saveLayout('Added “' + W()[b.dataset.add].t + '”'); b.classList.add('added'); b.querySelector('.tg').innerHTML = '<span class="pill ok">' + ic('check', 12) + ' Added</span>'; }));
+    };
+    m.querySelector('[data-q]').addEventListener('input', LV.debounce(e => { q = e.target.value.toLowerCase().trim(); paint(); }, 120));
+    m.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => { grp = b.dataset.g; m.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('on', x === b)); paint(); }));
+    paint();
     m.closest('.back').addEventListener('click', e => { if (e.target.classList.contains('back') || e.target.closest('[data-close]')) setTimeout(renderApp, 0); });
   });
 }
 function wireEdit(grid, dash) {
   const find = id => dash.items.find(i => i.id === id);
-  grid.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { const it = find(b.dataset.rm); dash.items = dash.items.filter(i => i !== it); saveLayout('Removed “' + (it.title || (W()[it.t] || {}).t || 'widget') + '”'); drawGrid(); }));
-  grid.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => { const it = find(b.dataset.size), S4 = [4, 6, 8, 12]; it.c = S4[(S4.indexOf(it.c || 12) + 1) % S4.length]; saveLayout(); drawGrid(); }));
-  grid.querySelectorAll('[data-note]').forEach(b => b.addEventListener('click', () => {
-    const it = find(b.dataset.note);
+  grid.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const it = find(b.dataset.rm); dash.items = dash.items.filter(i => i !== it); settle(dash.items); saveLayout('Removed “' + (it.title || (W()[it.t] || {}).t || 'widget') + '”'); drawGrid(); }));
+  grid.querySelectorAll('[data-dup]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const it = find(b.dataset.dup); const c = Object.assign({}, it, {id: LV.uid(), gy: it.gy + it.gh}); delete c.__st; dash.items.push(c); settle(dash.items); saveLayout('Duplicated widget'); drawGrid(); }));
+  grid.querySelectorAll('[data-ttl]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); const it = find(b.dataset.ttl), w = W()[it.t] || {}; const name = prompt('Widget title', it.title || w.t); if (name == null) return; it.title = name.trim().slice(0, 80) || undefined; saveLayout('Renamed widget'); drawGrid(); }));
+  grid.querySelectorAll('[data-note]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation(); const it = find(b.dataset.note);
     LV.modal('<h2>Heading and summary</h2><form style="margin-top:14px"><label class="field"><span>Heading</span><input class="input" name="t" value="' + esc(it.title || '') + '"></label><label class="field"><span>Summary</span><textarea class="input" name="x">' + esc(it.text || '') + '</textarea></label><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-close>Cancel</button><button class="btn go">Save</button></div></form>', (m, close) => {
-      m.querySelector('form').addEventListener('submit', e => { e.preventDefault(); it.title = e.target.t.value.slice(0, 80); it.text = e.target.x.value.slice(0, 600); saveLayout(); close(); drawGrid(); });
+      m.querySelector('form').addEventListener('submit', ev => { ev.preventDefault(); it.title = ev.target.t.value.slice(0, 80); it.text = ev.target.x.value.slice(0, 600); saveLayout(); close(); drawGrid(); });
     });
   }));
-  let dragId = null;
-  grid.querySelectorAll('.w[draggable]').forEach(el => {
-    el.addEventListener('dragstart', e => { dragId = el.dataset.id; el.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
-    el.addEventListener('dragend', () => { el.classList.remove('drag'); grid.querySelectorAll('.drop').forEach(x => x.classList.remove('drop')); });
-    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drop'); });
-    el.addEventListener('dragleave', () => el.classList.remove('drop'));
-    el.addEventListener('drop', e => {
-      e.preventDefault(); const from = dash.items.findIndex(i => i.id === dragId), to = dash.items.findIndex(i => i.id === el.dataset.id);
-      if (from < 0 || to < 0 || from === to) return;
-      const [m] = dash.items.splice(from, 1); dash.items.splice(to, 0, m); saveLayout('Moved widget'); drawGrid();
-    });
-  });
+
+  /* drag to move, handles to resize — pointer events work for mouse, pen and touch */
+  grid.querySelectorAll('.w[data-id]').forEach(el => el.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || e.target.closest('.wedit,button,a,input,select,textarea')) return;
+    const it = find(el.dataset.id); if (!it) return;
+    e.preventDefault();
+    const mode = e.target.dataset.rz || 'move', {cw} = gridMetrics(grid), stepX = cw + GAP, stepY = ROW + GAP;
+    const snap = dash.items.map(i => ({i, gx: i.gx, gy: i.gy, gw: i.gw, gh: i.gh}));
+    const restore = () => snap.forEach(s => { s.i.gx = s.gx; s.i.gy = s.gy; s.i.gw = s.gw; s.i.gh = s.gh; });
+    const r0 = el.getBoundingClientRect(), g0 = grid.getBoundingClientRect(), sx = e.clientX, sy = e.clientY;
+    const start = {gx: it.gx, gy: it.gy, gw: it.gw, gh: it.gh, left: r0.left - g0.left, top: r0.top - g0.top, w: r0.width, h: r0.height};
+    const ph = document.createElement('div'); ph.className = 'ph'; grid.appendChild(ph);
+    let tag = null, moved = false;
+    el.classList.add(mode === 'move' ? 'lift' : 'sizing'); el.setPointerCapture(e.pointerId);
+    const showPh = () => { const p = pxOf(it, cw); Object.assign(ph.style, {left: p.left + 'px', top: p.top + 'px', width: p.width + 'px', height: p.height + 'px'}); };
+    showPh();
+    const onMove = ev => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy; if (!moved && Math.abs(dx) + Math.abs(dy) < 4) return; moved = true;
+      restore();
+      if (mode === 'move') {
+        el.style.left = (start.left + dx) + 'px'; el.style.top = (start.top + dy) + 'px';
+        it.gx = Math.max(0, Math.min(COLS - it.gw, Math.round((start.left + dx) / stepX))); it.gy = Math.max(0, Math.round((start.top + dy) / stepY));
+      } else {
+        if (mode !== 's') { it.gw = Math.max(2, Math.min(COLS - it.gx, Math.round((start.w + dx + GAP) / stepX))); el.style.width = Math.max(cw * 2, start.w + dx) + 'px'; }
+        if (mode !== 'e') { it.gh = Math.max(2, Math.min(40, Math.round((start.h + dy + GAP) / stepY))); el.style.height = Math.max(ROW * 2, start.h + dy) + 'px'; }
+        if (!tag) { tag = document.createElement('div'); tag.className = 'size-tag'; el.appendChild(tag); }
+        tag.textContent = it.gw + ' × ' + it.gh;
+      }
+      settle(dash.items, it);
+      placeAll(grid, dash.items.filter(i => i !== it), 6); showPh();
+      const bottom = Math.max(...dash.items.map(i => i.gy + i.gh)); grid.style.height = (bottom + 6) * stepY + 'px';
+      /* scroll the page while dragging near the edges */
+      if (ev.clientY > innerHeight - 60) scrollBy(0, 14); else if (ev.clientY < 80) scrollBy(0, -14);
+    };
+    const onUp = () => {
+      el.removeEventListener('pointermove', onMove); el.removeEventListener('pointerup', onUp); el.removeEventListener('pointercancel', onUp);
+      el.classList.remove('lift', 'sizing'); ph.remove(); if (tag) tag.remove();
+      if (!moved) return;
+      settle(dash.items);
+      saveLayout(mode === 'move' ? 'Moved widget' : 'Resized widget');
+      placeAll(grid, dash.items, 6);
+      if (mode !== 'move') drawOne(grid, it);
+    };
+    el.addEventListener('pointermove', onMove); el.addEventListener('pointerup', onUp); el.addEventListener('pointercancel', onUp);
+  }));
 }
 
 /* ---------------- notifications: bell (forms) + phone (calls) ----------------
@@ -332,7 +445,7 @@ function feedPop(k, btn) {
   const p = pop(btn, '', ''); p.dataset.feed = k; fillFeed(p, k);
 }
 function fillFeed(p, k) {
-  const title = k === 'forms' ? 'Form leads' : 'Calls', list = feed[k];
+  const title = k === 'forms' ? 'Form leads' : (client().source === 'ghl' ? 'Calls' : 'Key events'), list = feed[k];
   if (list == null) {
     p.innerHTML = '<div class="pop-h"><b>' + title + '</b></div><div class="pop-load" role="status" aria-label="Loading">' + [1, 2, 3].map(() => '<div style="display:flex;gap:10px"><div class="sk" style="width:34px;height:34px;border-radius:50%"></div><div style="flex:1"><div class="sk" style="width:60%;height:12px"></div><div class="sk" style="width:85%;height:10px;margin-top:7px"></div></div></div>').join('') + '<div style="color:var(--ink-3);font-size:12.5px;text-align:center">Checking for new ' + (k === 'forms' ? 'leads' : 'calls') + '…</div></div>';
     return;
@@ -344,7 +457,7 @@ function fillFeed(p, k) {
     list.map((x, i) => {
       const isNew = x.at > seen && !rd.has(fid(x)) && !(k === 'calls' && x.dir === 'outbound');
       const nm = x.name || x.email || x.phone || (k === 'calls' ? 'Caller' : 'Website visitor');
-      const sub = k === 'forms' ? (x.form + (x.page ? ' · ' + x.page : '')) : (x.status === 'tap' ? 'Tapped your phone number' + (x.page ? ' on ' + x.page : '') : (x.dir === 'outbound' ? 'Outgoing' : cap(x.status)) + (x.dur ? ' · ' + LV.dur(x.dur) : ''));
+      const sub = k === 'forms' ? (x.form + (x.page ? ' · ' + x.page : '')) : (x.status === 'tap' ? (x.kind === 'whatsapp' ? 'Opened WhatsApp' : 'Tapped your phone number') + (x.page ? ' on ' + x.page : '') : (x.dir === 'outbound' ? 'Outgoing' : cap(x.status)) + (x.dur ? ' · ' + LV.dur(x.dur) : ''));
       return '<div class="row click" data-i="' + i + '" style="' + (isNew ? 'background:var(--brass-soft)' : '') + '">' + LV.av(nm) + '<div class="main"><b>' + esc(nm) + '</b><small>' + esc(sub) + '</small></div><div class="end"><small>' + esc(when(x.at)) + '</small>' + (isNew ? '<div><span class="pill brass" style="margin-top:3px">New</span></div>' : '') + '</div></div>';
     }).join('');
   const all = p.querySelector('[data-all]');

@@ -1,6 +1,6 @@
 /* Leadvault website snippet
-   Sends two things to the business's Leadvault dashboard: form submissions and taps on a phone
-   number. No cookies, no tracking across sites, never passwords or payment fields. The last way
+   Sends three things to the business's Leadvault dashboard: form submissions, taps on a phone
+   number and clicks on a WhatsApp link (the last two are key events). No cookies, no tracking across sites, never passwords or payment fields. The last way
    the visitor arrived (Google, an ad, social, an AI assistant, another site, direct) is remembered
    on this site only, so each lead shows where it came from.
 
@@ -121,11 +121,30 @@
   }
   document.addEventListener('submit', function (e) { var t = e.target; if (t && t.tagName === 'FORM') { try { onForm(t); } catch (err) {} } }, true);
 
-  /* ---------- phone taps ---------- */
+  /* ---------- key events: phone taps and WhatsApp clicks ----------
+     Both go to the Leadvault dashboard as key events. If the site runs Google Analytics,
+     they are also sent there as phone_click / whatsapp_click so they can be marked as key events. */
+  var WA = /(^|\/\/)(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com|chat\.whatsapp\.com|(www\.)?whatsapp\.com\/send)|^whatsapp:/i;
+  function ga4(name, params) {
+    try {
+      if (typeof window.gtag === 'function') window.gtag('event', name, params);
+      else if (Array.isArray(window.dataLayer)) window.dataLayer.push({event: name, leadvault: params});
+    } catch (e) {}
+  }
+  var lastKey = 0;
   document.addEventListener('click', function (e) {
-    var a = e.target && e.target.closest ? e.target.closest('a[href^="tel:"]') : null;
+    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (!a) return;
-    var num = ''; try { num = decodeURIComponent(a.getAttribute('href').slice(4)); } catch (err) { num = a.getAttribute('href').slice(4); }
-    send({ t: 'tap', phone: num.replace(/[^\d+()\-.\s]/g, '').slice(0, 40) });
+    var href = a.getAttribute('href') || '', kind = '', num = '';
+    if (/^tel:/i.test(href)) { kind = 'call'; try { num = decodeURIComponent(href.slice(4)); } catch (err) { num = href.slice(4); } }
+    else if (WA.test(href) || WA.test(a.href || '')) {
+      kind = 'whatsapp';
+      var m = String(a.href || href).match(/wa\.me\/(\+?\d+)|[?&]phone=(\+?\d+)/i); num = m ? (m[1] || m[2]) : '';
+    }
+    if (!kind || Date.now() - lastKey < 800) return;
+    lastKey = Date.now();
+    num = String(num).replace(/[^\d+()\-.\s]/g, '').slice(0, 40);
+    send({t: 'tap', k: kind, phone: num});
+    ga4(kind === 'call' ? 'phone_click' : 'whatsapp_click', {link_url: String(a.href || href).slice(0, 100), page_path: location.pathname.slice(0, 100), source: 'leadvault'});
   }, true);
 })();
