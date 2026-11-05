@@ -530,3 +530,9 @@ path.dn{transform-origin:75px 75px;animation:dn .8s var(--ease) both}
 
 .seg button{white-space:nowrap}
 #mperiod{max-width:100%;overflow-x:auto;scrollbar-width:none}
+
+/* wide logos */
+img[data-logo].wide{width:auto!important;max-width:150px;object-fit:contain}
+.biz img.wide{height:28px;padding:5px 9px}
+.wh img.wide{height:44px;max-width:150px;padding:8px 10px!important}
+.menu img.wide{max-width:64px;height:20px}
