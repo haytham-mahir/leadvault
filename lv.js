@@ -1,0 +1,321 @@
+/* ==========================================================================
+   LEADVAULT SHARED KIT: api, sign-in gate, dial loader, 5-minute idle
+   sign-out, icons, charts, drawers. Used by the dashboard and the console.
+   ========================================================================== */
+(function () {
+'use strict';
+const CFG = window.LV_CONFIG || {};
+const LV = window.LV = {};
+LV.API = CFG.api || '';
+LV.IDLE = 300;                       // seconds; mirrors the backend
+
+/* ---------- utilities ---------- */
+const esc = LV.esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+LV.fmt = n => (Number(n) || 0).toLocaleString('en-CA');
+LV.money = n => (Number(n) || 0).toLocaleString('en-CA', {style: 'currency', currency: 'CAD', maximumFractionDigits: 0});
+LV.pct = (a, b) => b ? (Math.round(a / b * 1000) / 10) + '%' : '—';
+LV.day = 864e5;
+LV.when = t => {
+  if (!t) return '—';
+  const d = Date.now() - t;
+  if (d >= 0 && d < 6e4) return 'just now';
+  if (d >= 0 && d < 36e5) return Math.round(d / 6e4) + ' min ago';
+  const dt = new Date(t), today = new Date();
+  if (dt.toDateString() === today.toDateString()) return 'today, ' + dt.toLocaleTimeString('en-CA', {hour: 'numeric', minute: '2-digit'});
+  const y = new Date(today - 864e5);
+  if (dt.toDateString() === y.toDateString()) return 'yesterday, ' + dt.toLocaleTimeString('en-CA', {hour: 'numeric', minute: '2-digit'});
+  return dt.toLocaleString('en-CA', {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'});
+};
+LV.date = t => t ? new Date(t).toLocaleDateString('en-CA', {month: 'short', day: 'numeric', year: 'numeric'}) : '—';
+LV.dur = s => { s = Number(s) || 0; return s < 60 ? s + 's' : Math.floor(s / 60) + 'm ' + String(s % 60).padStart(2, '0') + 's'; };
+LV.initials = s => String(s || '?').trim().split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+const AVC = ['#1F7A5A', '#3E7CB1', '#8E5A9B', '#B7791F', '#5B8C85', '#9C6B4E', '#6B7C3A', '#D1495B'];
+LV.hue = s => { let h = 0; String(s || '').split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return AVC[h % AVC.length]; };
+LV.av = (name, size) => '<span class="av" style="background:' + LV.hue(name) + (size ? ';width:' + size + 'px;height:' + size + 'px' : '') + '">' + esc(LV.initials(name)) + '</span>';
+LV.ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+LV.ss = {
+  get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+};
+LV.uid = () => 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+LV.debounce = (f, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => f(...a), ms); }; };
+
+/* ---------- api ---------- */
+LV.onAuthLost = null;
+LV.api = async function (action, body) {
+  const payload = Object.assign({action}, body || {});
+  let r;
+  try {
+    r = await fetch(LV.API, {method: 'POST', body: JSON.stringify(payload), headers: {'Content-Type': 'text/plain;charset=utf-8'}, redirect: 'follow'});
+  } catch (e) { return {error: 'Can’t reach Leadvault. Check your connection and try again.', net: true}; }
+  let j; try { j = await r.json(); } catch (e) { return {error: 'Leadvault sent an unexpected reply. Try again in a moment.'}; }
+  if (j && j.auth && LV.onAuthLost) LV.onAuthLost(j.error);
+  if (!j.error && LV.idle) LV.idle.bump(true);
+  return j;
+};
+
+/* ---------- icons (24px stroke) ---------- */
+const P = LV.P = {
+  bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
+  phone: 'M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z',
+  form: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5',
+  users: 'M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
+  cal: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4', money: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  line: 'M3 3v18h18M7 15l4-4 3 3 6-7', bars: 'M4 20V10M10 20V4M16 20v-7M22 20H2', donut: 'M12 3a9 9 0 1 0 9 9h-9zM15 3.5A9 9 0 0 1 20.5 9H15z',
+  funnel: 'M3 4h18l-7 9v6l-4 2v-8z', plus: 'M12 5v14M5 12h14', send: 'M4.5 12 20 4.5 15.5 20l-3.2-6.3zM12.3 13.7 20 4.5', x: 'M6 6l12 12M18 6 6 18',
+  grid: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z', edit: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4', lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+  bolt: 'M13 2 4 14h7l-1 8 9-12h-7z', globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18',
+  pin: 'M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21zM12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z', mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3', book: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5',
+  target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01', check: 'M20 6 9 17l-5-5', clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  inbox: 'M22 12h-6l-2 3h-4l-2-3H2M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z', spark: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', chev: 'm7 10 5 5 5-5', left: 'm15 18-6-6 6-6', right: 'm9 18 6-6-6-6',
+  out: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9', key: 'M15 7a4 4 0 1 1-3.9 5H3v4h3v-2h2v-2h3.1A4 4 0 0 1 15 7zM16 10h.01',
+  trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', copy: 'M9 9h11v11H9zM5 15H4V4h11v1', refresh: 'M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5',
+  download: 'M12 3v12M7 10l5 5 5-5M5 21h14', move: 'M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20', shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z', flag: 'M4 22V4M4 4h13l-2 4 2 4H4', tag: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8zM7.5 7.5h.01',
+  chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5', more: 'M12 12h.01M19 12h.01M5 12h.01',
+  undo: 'M3 7v6h6M3.5 13A9 9 0 1 0 6 6.3L3 9', task: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'
+};
+LV.ic = (n, s) => '<svg viewBox="0 0 24 24" width="' + (s || 18) + '" height="' + (s || 18) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + (P[n] || P.spark) + '"/></svg>';
+
+/* ---------- brand mark + combination dial ---------- */
+LV.mark = (s, light) => '<svg viewBox="0 0 32 32" width="' + (s || 28) + '" height="' + (s || 28) + '" aria-hidden="true"><circle cx="16" cy="16" r="14.5" fill="' + (light ? '#fff' : '#C29B3F') + '"/><circle cx="16" cy="16" r="9.5" fill="none" stroke="#0F3D2E" stroke-width="2.4"/><path d="M11.6 12.4 16 20.4l4.4-8" fill="none" stroke="#0F3D2E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 1.5v3.2M16 27.3v3.2M1.5 16h3.2M27.3 16h3.2" stroke="#0F3D2E" stroke-width="1.6"/></svg>';
+LV.dial = (cls) => {
+  let ticks = '';
+  for (let i = 0; i < 60; i++) {
+    const a = i * 6 * Math.PI / 180, long = i % 5 === 0, r1 = long ? 70 : 75, r2 = 81;
+    ticks += '<line x1="' + (100 + r1 * Math.sin(a)).toFixed(2) + '" y1="' + (100 - r1 * Math.cos(a)).toFixed(2) + '" x2="' + (100 + r2 * Math.sin(a)).toFixed(2) + '" y2="' + (100 - r2 * Math.cos(a)).toFixed(2) + '" stroke="#C29B3F" stroke-width="' + (long ? 2.2 : 1) + '" stroke-opacity="' + (long ? 1 : .6) + '"/>';
+  }
+  let nums = '';
+  for (let n = 0; n < 12; n++) { const a = n * 30 * Math.PI / 180; nums += '<text x="' + (100 + 59 * Math.sin(a)).toFixed(1) + '" y="' + (100 - 59 * Math.cos(a) + 3.5).toFixed(1) + '" text-anchor="middle" font-size="9" font-family="Bricolage Grotesque,sans-serif" font-weight="600" fill="#D9B868">' + (n * 5) + '</text>'; }
+  return '<div class="dial ' + (cls || '') + '"><svg viewBox="0 0 200 200" aria-hidden="true">' +
+    '<circle cx="100" cy="100" r="96" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="1"/>' +
+    '<circle cx="100" cy="100" r="88" fill="#0A2A20" stroke="#C29B3F" stroke-width="2"/>' +
+    '<g class="ring">' + ticks + nums + '</g>' +
+    '<path d="M100 6 94 -4h12z" fill="#D9B868"/>' +
+    '<circle cx="100" cy="100" r="44" fill="#145240" stroke="#C29B3F" stroke-width="1.5"/>' +
+    '<g class="bolt"><rect x="62" y="96" width="76" height="8" rx="4" fill="#C29B3F"/><circle cx="100" cy="100" r="14" fill="#0F3D2E" stroke="#D9B868" stroke-width="2"/><path d="M95 96.5 100 104l5-7.5" fill="none" stroke="#D9B868" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></g>' +
+    '</svg></div>';
+};
+
+/* Full-screen boot loader (while the session is restored). */
+LV.boot = {
+  show(msg) {
+    let b = document.getElementById('lvBoot');
+    if (!b) { b = document.createElement('div'); b.id = 'lvBoot'; b.className = 'boot'; b.setAttribute('role', 'status'); b.innerHTML = '<div class="boot-in">' + LV.dial() + '<div class="boot-word">Leadvault</div><div class="boot-msg"></div></div>'; document.body.appendChild(b); }
+    b.classList.remove('gone'); b.querySelector('.dial').classList.remove('open');
+    b.querySelector('.boot-msg').textContent = msg || 'Opening your vault…';
+  },
+  msg(m) { const b = document.getElementById('lvBoot'); if (b) b.querySelector('.boot-msg').textContent = m; },
+  open() { const b = document.getElementById('lvBoot'); if (!b) return; b.querySelector('.dial').classList.add('open'); b.classList.add('gone'); setTimeout(() => b.remove(), 900); }
+};
+
+/* ---------- sign-in gate ---------- */
+/* opts: {title, sub, kind:'client'|'team', note, onSubmit(email,pw,extra) -> Promise<{error}|{ok}>, keyMode} */
+LV.gate = function (root, opts) {
+  const remembered = LV.ls.get('lv_last_email_' + opts.kind, '');
+  root.innerHTML = '<div class="gate">' +
+    '<section class="gate-art"><div class="gate-brand">' + LV.mark(34) + 'Leadvault</div>' +
+      '<div class="gate-hero">' + LV.dial('still') + '<div><h1>' + esc(opts.headline || 'Every lead, kept safe.') + '</h1><p>' + esc(opts.blurb || 'Forms, calls, deals and bookings from every channel, in one place your whole team can trust.') + '</p></div></div>' +
+      '<div class="gate-foot">' + (opts.foot || [['5 min', 'idle sign-out'], ['Live', 'from your CRM'], ['Private', 'by design']]).map(f => '<div><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</div>').join('') + '</div></section>' +
+    '<section class="gate-form"><form class="gate-card" novalidate>' +
+      '<h2>' + esc(opts.title || 'Sign in') + '</h2><p class="sub">' + esc(opts.sub || 'Use the email and password your account manager sent you.') + '</p>' +
+      (opts.note ? '<div class="gate-note">' + LV.ic('clock', 18) + '<span>' + esc(opts.note) + '</span></div>' : '') +
+      '<div class="gate-err" role="alert">' + LV.ic('shield', 18) + '<span></span></div>' +
+      '<div data-pwmode><label class="field"><span>Email</span><input class="input" type="email" name="email" autocomplete="username" required value="' + esc(remembered) + '"></label>' +
+      '<label class="field"><span>Password</span><div class="pw"><input class="input" type="password" name="password" autocomplete="current-password" required><button type="button" data-show aria-label="Show password">Show</button></div></label>' +
+      '<label class="check"><input type="checkbox" name="remember"' + (remembered ? ' checked' : '') + '> Remember my email on this device</label></div>' +
+      (opts.keyMode ? '<div data-keymode hidden><label class="field"><span>Owner key</span><input class="input" type="password" name="key" autocomplete="off" placeholder="LV-…"></label><p class="hint" style="margin:-6px 0 18px">Found in Apps Script → Project Settings → Script properties → OWNER_KEY.</p></div>' : '') +
+      '<button class="btn go" type="submit">Sign in</button>' +
+      (opts.keyMode ? '<button class="btn ghost" type="button" data-switch style="width:100%;justify-content:center;margin-top:8px">Use the owner key instead</button>' : '') +
+      '<div class="gate-small">' + LV.ic('lock', 15) + '<span>You’ll be signed out after 5 minutes without activity.</span></div>' +
+    '</form></section></div>';
+  const f = root.querySelector('form'), err = root.querySelector('.gate-err'), btn = f.querySelector('button[type=submit]');
+  let keyMode = false;
+  f.querySelector('[data-show]').addEventListener('click', e => { const i = f.password; i.type = i.type === 'password' ? 'text' : 'password'; e.target.textContent = i.type === 'password' ? 'Show' : 'Hide'; });
+  if (opts.keyMode) f.querySelector('[data-switch]').addEventListener('click', e => {
+    keyMode = !keyMode; f.querySelector('[data-pwmode]').hidden = keyMode; f.querySelector('[data-keymode]').hidden = !keyMode;
+    e.target.textContent = keyMode ? 'Use email and password' : 'Use the owner key instead'; (keyMode ? f.key : f.email).focus();
+  });
+  setTimeout(() => (remembered ? f.password : f.email).focus(), 50);
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); err.classList.remove('on');
+    const email = f.email.value.trim(), pw = f.password.value, key = keyMode ? f.key.value.trim() : '';
+    if (!keyMode && (!email || !pw)) return fail('Enter your email and password.');
+    if (keyMode && !key) return fail('Enter the owner key.');
+    btn.classList.add('busy'); btn.disabled = true; const dl = root.querySelector('.gate-art .dial'); if (dl) dl.classList.remove('still');
+    if (f.remember && f.remember.checked) LV.ls.set('lv_last_email_' + opts.kind, email); else LV.ls.del('lv_last_email_' + opts.kind);
+    const r = await opts.onSubmit(email, pw, {key});
+    btn.classList.remove('busy'); btn.disabled = false;
+    if (r && r.error) { fail(r.error); if (dl) dl.classList.add('still'); }
+  });
+  function fail(m) { err.querySelector('span').textContent = m; err.classList.add('on'); f.classList.remove('shake'); void f.offsetWidth; f.classList.add('shake'); }
+  /* the dial unlocks while signing in */
+  return {unlock() { const d = root.querySelector('.gate-art .dial'); if (d) d.classList.add('open'); }};
+};
+
+/* ---------- 5-minute idle sign-out ---------- */
+/* Any key, click, scroll or touch counts as activity. At 4 minutes a bar counts
+   down the last 60 seconds; at 5 minutes onTimeout() signs the person out. A
+   light ping keeps the backend session in step while the person is active. */
+LV.startIdle = function (opts) {
+  LV.stopIdle();
+  const limit = (opts.seconds || LV.IDLE) * 1000, warnAt = limit - 60000;
+  let last = Date.now(), pinged = Date.now(), bar = null, tick = null;
+  const bump = (fromApi) => {
+    last = Date.now();
+    if (fromApi) pinged = Date.now();
+    if (bar && bar.classList.contains('on')) bar.classList.remove('on');
+  };
+  const onAct = LV.debounce(() => bump(false), 200);
+  const evs = ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll', 'mousemove'];
+  evs.forEach(e => window.addEventListener(e, onAct, {passive: true, capture: true}));
+  bar = document.createElement('div'); bar.className = 'idle'; bar.setAttribute('role', 'alert');
+  bar.innerHTML = '<span>' + LV.ic('clock', 18) + '</span><span>For your security you’ll be signed out in <b data-s>60</b>s.</span><button class="btn brass sm" type="button">Stay signed in</button>';
+  document.body.appendChild(bar);
+  bar.querySelector('button').addEventListener('click', () => { bump(false); opts.ping && opts.ping(); });
+  tick = setInterval(() => {
+    const idle = Date.now() - last;
+    if (idle >= limit) { LV.stopIdle(); opts.onTimeout(); return; }
+    if (idle >= warnAt) { bar.classList.add('on'); bar.querySelector('[data-s]').textContent = Math.ceil((limit - idle) / 1000); }
+    /* active, but no server call for 2 minutes: ping so the backend session slides too */
+    if (idle < 60000 && Date.now() - pinged > 120000 && opts.ping) { pinged = Date.now(); opts.ping(); }
+  }, 1000);
+  /* coming back to a sleeping tab after the limit signs out at once */
+  const vis = () => { if (document.visibilityState === 'visible' && Date.now() - last >= limit) { LV.stopIdle(); opts.onTimeout(); } };
+  document.addEventListener('visibilitychange', vis);
+  LV.idle = {bump, stop() { clearInterval(tick); evs.forEach(e => window.removeEventListener(e, onAct, {capture: true})); document.removeEventListener('visibilitychange', vis); bar.remove(); }};
+};
+LV.stopIdle = function () { if (LV.idle) { LV.idle.stop(); LV.idle = null; } };
+
+/* ---------- toast, drawer, modal, confirm ---------- */
+LV.toast = function (msg, action) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status');
+  t.innerHTML = '<span>' + esc(msg) + '</span>' + (action ? '<button type="button">' + esc(action.label) + '</button>' : '');
+  if (action) t.querySelector('button').addEventListener('click', () => { t.remove(); action.fn(); });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), action ? 7000 : 3600);
+};
+LV.drawer = function (title, sub, bodyHtml, onMount) {
+  const b = document.createElement('div'); b.className = 'back';
+  b.innerHTML = '<aside class="drawer" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><div class="drawer-h"><div style="flex:1;min-width:0"><h2>' + esc(title) + '</h2>' + (sub ? '<div style="color:var(--ink-3);font-size:13px;margin-top:3px">' + sub + '</div>' : '') + '</div><button class="iconbtn light" type="button" data-x aria-label="Close">' + LV.ic('x') + '</button></div><div class="drawer-b">' + bodyHtml + '</div></aside>';
+  const close = () => { b.remove(); document.removeEventListener('keydown', key); };
+  const key = e => { if (e.key === 'Escape') close(); };
+  b.addEventListener('click', e => { if (e.target === b) close(); });
+  b.querySelector('[data-x]').addEventListener('click', close);
+  document.addEventListener('keydown', key);
+  document.body.appendChild(b);
+  const body = b.querySelector('.drawer-b');
+  if (onMount) onMount(body, close);
+  return {el: b, body, close};
+};
+LV.modal = function (html, onMount) {
+  const b = document.createElement('div'); b.className = 'back center';
+  b.innerHTML = '<div class="modal" role="dialog" aria-modal="true">' + html + '</div>';
+  const close = () => { b.remove(); document.removeEventListener('keydown', key); };
+  const key = e => { if (e.key === 'Escape') close(); };
+  b.addEventListener('click', e => { if (e.target === b) close(); });
+  document.addEventListener('keydown', key);
+  document.body.appendChild(b);
+  b.querySelectorAll('[data-close]').forEach(x => x.addEventListener('click', close));
+  if (onMount) onMount(b.querySelector('.modal'), close);
+  return {close, el: b};
+};
+LV.confirm = (title, text, yes, danger) => new Promise(res => {
+  LV.modal('<h2>' + esc(title) + '</h2><p style="color:var(--ink-2);margin:6px 0 22px">' + esc(text) + '</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-no>Cancel</button><button class="btn ' + (danger ? 'danger' : 'go') + '" type="button" data-yes>' + esc(yes || 'Confirm') + '</button></div>', (m, close) => {
+    m.querySelector('[data-no]').addEventListener('click', () => { close(); res(false); });
+    m.querySelector('[data-yes]').addEventListener('click', () => { close(); res(true); });
+  });
+});
+LV.copy = (text, msg) => { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => LV.toast(msg || 'Copied'), () => { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); LV.toast(msg || 'Copied'); } catch (e) {} t.remove(); }); };
+LV.csv = (name, rows) => {
+  const s = rows.map(r => r.map(v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([s], {type: 'text/csv'})); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* ---------- charts ---------- */
+const SER = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)'];
+LV.SER = SER;
+LV.spark = (vals, color) => {
+  if (!vals || vals.length < 2) return '';
+  const max = Math.max(1, ...vals), w = 120, h = 30, step = w / (vals.length - 1);
+  const pts = vals.map((v, i) => (i * step).toFixed(1) + ',' + (h - 2 - (v / max) * (h - 4)).toFixed(1));
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true"><polyline points="' + pts.join(' ') + '" fill="none" stroke="' + (color || 'var(--s1)') + '" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>';
+};
+/* series: [{name, color, vals:[]}], labels: [ts] */
+LV.lineChart = function (el, labels, series, o) {
+  o = o || {};
+  const H = o.h || 240, W = Math.max(300, el.clientWidth || 600), pad = {l: 40, r: 10, t: 10, b: 26};
+  const max = Math.max(1, ...series.flatMap(s => s.vals)), nice = niceMax(max), n = labels.length;
+  const x = i => pad.l + (n <= 1 ? 0 : i * (W - pad.l - pad.r) / (n - 1)), y = v => pad.t + (H - pad.t - pad.b) * (1 - v / nice);
+  let g = '';
+  for (let k = 0; k <= 4; k++) { const v = nice * k / 4, yy = y(v); g += '<line x1="' + pad.l + '" x2="' + (W - pad.r) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line-2)"/><text x="' + (pad.l - 8) + '" y="' + (yy + 4) + '" text-anchor="end" font-size="11" fill="var(--ink-3)">' + LV.fmt(v) + '</text>'; }
+  const every = Math.max(1, Math.ceil(n / 7));
+  labels.forEach((t, i) => { if (i % every === 0 || i === n - 1) g += '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="var(--ink-3)">' + new Date(t).toLocaleDateString('en-CA', {month: 'short', day: 'numeric'}) + '</text>'; });
+  let paths = '';
+  series.forEach((s, si) => {
+    const c = s.color || SER[si], pts = s.vals.map((v, i) => [x(i), y(v)]);
+    const d = smooth(pts);
+    if (si === 0 && !o.noArea) paths += '<path d="' + d + ' L' + x(n - 1) + ',' + y(0) + ' L' + x(0) + ',' + y(0) + 'Z" fill="' + c + '" opacity=".09"/>';
+    paths += '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + (si === 0 ? 2.4 : 1.8) + '"' + (s.dash ? ' stroke-dasharray="4 4"' : '') + ' stroke-linecap="round"/>';
+  });
+  el.innerHTML = '<div class="chart"><svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" role="img" aria-label="' + esc(o.label || 'Chart') + '">' + g + paths + '<line class="cur" y1="' + pad.t + '" y2="' + (H - pad.b) + '" stroke="var(--ink-3)" stroke-dasharray="3 3" opacity="0"/></svg><div class="tip"></div></div>' +
+    (series.length > 1 ? '<div class="legend">' + series.map((s, i) => '<span><i style="background:' + (s.color || SER[i]) + '"></i>' + esc(s.name) + '</span>').join('') + '</div>' : '');
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), cur = el.querySelector('.cur');
+  svg.addEventListener('mousemove', e => {
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(n - 1, Math.round((px - pad.l) / ((W - pad.l - pad.r) / Math.max(1, n - 1)))));
+    cur.setAttribute('x1', x(i)); cur.setAttribute('x2', x(i)); cur.setAttribute('opacity', 1);
+    tip.innerHTML = '<b>' + new Date(labels[i]).toLocaleDateString('en-CA', {weekday: 'short', month: 'short', day: 'numeric'}) + '</b><br>' + series.map((s, si) => '<span style="color:' + (si ? '#D9B868' : '#9FE0C3') + '">●</span> ' + esc(s.name) + ': ' + LV.fmt(s.vals[i])).join('<br>');
+    tip.style.left = (x(i) * r.width / W) + 'px'; tip.style.top = (y(Math.max(...series.map(s => s.vals[i]))) * r.height / H) + 'px'; tip.classList.add('on');
+  });
+  svg.addEventListener('mouseleave', () => { tip.classList.remove('on'); cur.setAttribute('opacity', 0); });
+};
+function niceMax(m) { const p = Math.pow(10, Math.floor(Math.log10(m))), f = m / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+function smooth(p) {
+  if (p.length < 3) return 'M' + p.map(q => q.join(',')).join(' L');
+  let d = 'M' + p[0][0] + ',' + p[0][1];
+  for (let i = 0; i < p.length - 1; i++) {
+    const p0 = p[i - 1] || p[i], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2] || p2, t = .18;
+    const lo = Math.min(p1[1], p2[1]), hi = Math.max(p1[1], p2[1]), cl = v => Math.max(lo, Math.min(hi, v));
+    d += ' C' + (p1[0] + (p2[0] - p0[0]) * t) + ',' + cl(p1[1] + (p2[1] - p0[1]) * t) + ' ' + (p2[0] - (p3[0] - p1[0]) * t) + ',' + cl(p2[1] - (p3[1] - p1[1]) * t) + ' ' + p2[0] + ',' + p2[1];
+  }
+  return d;
+}
+/* items: [{k, v, color}] */
+LV.donut = function (items, o) {
+  o = o || {};
+  const tot = items.reduce((s, x) => s + x.v, 0);
+  if (!tot) return '<div class="empty"><b>Nothing yet</b>No data for this period.</div>';
+  let a = -Math.PI / 2, segs = '';
+  items.forEach((it, i) => {
+    const f = it.v / tot, a2 = a + f * Math.PI * 2, large = f > .5 ? 1 : 0, R = 60, r = 40;
+    const p = (ang, rad) => (75 + rad * Math.cos(ang)).toFixed(2) + ',' + (75 + rad * Math.sin(ang)).toFixed(2);
+    if (f >= .9999) segs += '<circle cx="75" cy="75" r="50" fill="none" stroke="' + (it.color || SER[i % 8]) + '" stroke-width="20"/>';
+    else segs += '<path d="M' + p(a, R) + ' A' + R + ',' + R + ' 0 ' + large + ' 1 ' + p(a2, R) + ' L' + p(a2, r) + ' A' + r + ',' + r + ' 0 ' + large + ' 0 ' + p(a, r) + 'Z" fill="' + (it.color || SER[i % 8]) + '"><title>' + esc(it.k) + ': ' + LV.fmt(it.v) + '</title></path>';
+    a = a2;
+  });
+  return '<div class="donut-wrap"><svg viewBox="0 0 150 150" role="img" aria-label="' + esc(o.label || 'Breakdown') + '">' + segs + '<text x="75" y="73" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="600" font-size="22" fill="var(--ink)">' + LV.fmt(tot) + '</text><text x="75" y="91" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">' + esc(o.unit || 'total') + '</text></svg>' +
+    '<div class="legend">' + items.map((it, i) => '<div><span><i style="background:' + (it.color || SER[i % 8]) + '"></i>' + esc(it.k) + '</span><b class="num">' + LV.fmt(it.v) + ' <small style="color:var(--ink-3);font-weight:500">' + Math.round(it.v / tot * 100) + '%</small></b></div>').join('') + '</div></div>';
+};
+/* items: [{k, v, sub}] */
+LV.bars = function (items, o) {
+  o = o || {};
+  if (!items.length) return '<div class="empty"><b>Nothing yet</b>' + esc(o.empty || 'No data for this period.') + '</div>';
+  const max = Math.max(1, ...items.map(x => x.v));
+  return '<div>' + items.map(it => '<div class="bar-row"' + (o.tint ? ' style="--t:' + o.tint + '"' : '') + '><div><div class="lbl"><span title="' + esc(it.k) + '">' + esc(it.k) + '</span>' + (it.sub ? '<small style="color:var(--ink-3)">' + esc(it.sub) + '</small>' : '') + '</div><div class="track"><div class="fill" style="width:' + (it.v / max * 100).toFixed(1) + '%"></div></div></div><div class="v">' + (o.money ? LV.money(it.v) : LV.fmt(it.v)) + '</div></div>').join('') + '</div>';
+};
+LV.delta = (now, prev, invert) => {
+  if (!prev && !now) return '<span class="delta">no change</span>';
+  if (!prev) return '<span class="delta up">new this period</span>';
+  const d = Math.round((now - prev) / prev * 100), up = d >= 0;
+  return '<span class="delta ' + (d === 0 ? '' : ((up ? !invert : invert) ? 'up' : 'down')) + '">' + (up ? '▲ ' : '▼ ') + Math.abs(d) + '% vs before</span>';
+};
+})();
