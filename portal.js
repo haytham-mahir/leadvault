@@ -121,7 +121,7 @@ function header() {
   return (me.user.preview ? '<div class="preview-bar">' + ic('eye', 14) + ' You’re viewing ' + esc(c.name) + '’s dashboard as the Leadvault team. Changes to the layout become this business’s default.</div>' : '') +
     '<header class="top"><div class="top-in">' +
     '<a class="brandmark" href="./" aria-label="Leadvault home">' + LV.mark(30) + '<span class="hide-sm">Leadvault</span></a><div class="vsep hide-sm"></div>' +
-    '<div class="biz"><img alt="" src="' + esc(logo) + '" onerror="this.style.visibility=\'hidden\'">' +
+    '<div class="biz"><img alt="" data-logo src="' + esc(logo) + '" onerror="this.style.visibility=\'hidden\'">' +
       (me.clients.length > 1 ? '<button type="button" class="biz-btn" data-biz aria-haspopup="listbox"><span>' + esc(c.name) + '</span>' + ic('chev', 16) + '</button>' : '<b class="biz-btn" style="cursor:default"><span>' + esc(c.name) + '</span></b>') + '</div>' +
     '<div class="grow"></div>' +
     '<div class="seg hide-sm" data-period role="group" aria-label="Period">' + PERIODS.map(p => '<button type="button" data-p="' + p[0] + '"' + (p[0] === S.period ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + p[1] + '</button>').join('') + '</div>' +
@@ -322,7 +322,7 @@ function changePassword() {
   });
 }
 function bizMenu(btn) {
-  const p = pop(btn, '<div class="pop-h"><b>Your businesses</b></div><div class="menu" style="width:auto">' + S.me.clients.map(c => '<button type="button" data-d="' + esc(c.domain) + '"' + (c.domain === S.domain ? ' class="on"' : '') + '><img alt="" width="20" height="20" style="border-radius:5px" src="' + esc(c.logo || 'https://www.google.com/s2/favicons?domain=' + c.domain + '&sz=64') + '"> ' + esc(c.name) + '</button>').join('') + '</div>', 'menu');
+  const p = pop(btn, '<div class="pop-h"><b>Your businesses</b></div><div class="menu" style="width:auto">' + S.me.clients.map(c => '<button type="button" data-d="' + esc(c.domain) + '"' + (c.domain === S.domain ? ' class="on"' : '') + '><img alt="" data-logo width="20" height="20" style="border-radius:5px;object-fit:contain" src="' + esc(c.logo || 'https://www.google.com/s2/favicons?domain=' + c.domain + '&sz=64') + '"> ' + esc(c.name) + '</button>').join('') + '</div>', 'menu');
   p.style.left = '0'; p.style.right = 'auto'; p.style.width = '300px';
   p.querySelectorAll('[data-d]').forEach(b => b.addEventListener('click', () => {
     closePops(); S.domain = b.dataset.d; LV.ls.set('lv_domain_' + S.me.user.email, S.domain);
