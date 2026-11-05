@@ -424,3 +424,10 @@ LV.delta = (now, prev, invert) => {
 /* Loading placeholder rows. The dashboard swaps in its richer set; the console uses this one. */
 LV.skel = () => [1, 2, 3, 4].map(() => '<div class="row"><div class="sk" style="width:34px;height:34px;border-radius:50%"></div><div style="flex:1"><div class="sk" style="width:60%;height:12px"></div><div class="sk" style="width:40%;height:10px;margin-top:6px"></div></div></div>').join('');
 })();
+
+/* wide wordmark logos get a wider slot instead of being squeezed into a square */
+LV.fitLogo = t => { if (t && t.naturalWidth && t.naturalWidth > t.naturalHeight * 1.6) t.classList.add('wide'); };
+document.addEventListener('load', e => { const t = e.target; if (t && t.tagName === 'IMG' && t.hasAttribute('data-logo')) LV.fitLogo(t); }, true);
+(function () { const scan = root => { (root.querySelectorAll ? root.querySelectorAll('img[data-logo]') : []).forEach(i => { if (i.complete) LV.fitLogo(i); }); };
+  const go = () => { scan(document); new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches && n.matches('img[data-logo]') && n.complete) LV.fitLogo(n); scan(n); } }))).observe(document.body, {childList: true, subtree: true}); };
+  if (document.body) go(); else document.addEventListener('DOMContentLoaded', go); })();
